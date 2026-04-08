@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f2f0eb;
+    --surface: #ffffff;
+    --surface2: #f7f5f0;
+    --border: rgba(0,0,0,0.08);
+    --border2: rgba(0,0,0,0.14);
+    --text: #1a1917;
+    --text2: #6b6860;
+    --text3: #a09e98;
+    --blue: #2563eb;
+    --blue-bg: #eff6ff;
+    --green: #16a34a;
+    --green-bg: #f0fdf4;
+    --amber: #d97706;
+    --amber-bg: #fffbeb;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --orange: #ea580c;
+    --radius: 12px;
+    --radius-sm: 7px;
+  }
+  [data-theme="dark"] {
+    --bg: #111110;
+    --surface: #1c1c1b;
+    --surface2: #242423;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0ede8;
+    --text2: #8a8880;
+    --text3: #555350;
+    --blue-bg: #1e3a5f;
+    --green-bg: #14291d;
+    --amber-bg: #2d1f0a;
+    --red-bg: #2d1111;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+  .app { max-width: 1380px; margin: 0 auto; padding: 20px 16px; }
+
+  /* TOP BAR */
+  .topbar { display: grid; grid-template-columns: auto 1fr; gap: 12px; margin-bottom: 14px; align-items: start; }
+  .day-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px 18px; }
+  .day-name { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
+  .day-date { font-size: 12px; color: var(--text2); margin-bottom: 12px; }
+  .rating-row { display: flex; gap: 16px; }
+  .rating-group label.lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text3); display: block; margin-bottom: 4px; }
+  .radio-strip { display: flex; gap: 2px; align-items: center; }
+  .radio-strip input[type=radio] { display: none; }
+  .radio-strip label { font-size: 17px; cursor: pointer; padding: 3px 4px; border-radius: 6px; transition: background 0.15s; }
+  .radio-strip label:hover { background: var(--surface2); }
+  .radio-strip input[type=radio]:checked + label { background: var(--surface2); outline: 2px solid var(--border2); }
+
+  .progress-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between; }
+  .progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .prog-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .prog-bar-track { height: 14px; border-radius: 7px; background: var(--surface2); border: 0.5px solid var(--border); overflow: hidden; }
+  .prog-bar-fill { height: 100%; border-radius: 7px; transition: width 0.9s ease, background-color 0.9s ease; }
+  .prog-meta { display: flex; justify-content: space-between; margin-top: 5px; }
+
+  .toggle-strip { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .chip { padding: 4px 13px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: var(--surface2); color: var(--text2); transition: all 0.15s; user-select: none; font-family: 'DM Sans', sans-serif; }
+  .chip.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* MAIN GRID */
+  .main-grid { display: grid; grid-template-columns: 1fr 300px; gap: 12px; }
+  .lists-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; transition: grid-template-columns 0.2s ease; }
+  .lists-grid[data-cols="1"] { grid-template-columns: minmax(0, 1fr); }
+  .lists-grid[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lists-grid[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  /* CARDS */
+  .panel { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px; }
+  .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .panel-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .pill { font-size: 10px; background: var(--surface2); color: var(--text2); border: 0.5px solid var(--border); border-radius: 10px; padding: 2px 8px; }
+
+  /* BUTTONS */
+  btn, button { font-family: 'DM Sans', sans-serif; }
+  .btn { display: inline-flex; align-items: center; gap: 4px; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: var(--radius-sm); padding: 5px 11px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text); transition: all 0.12s; font-family: 'DM Sans', sans-serif; }
+  .btn:hover { background: var(--border); }
+  .btn:active { transform: scale(0.97); }
+  .btn-blue { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn-blue:hover { background: #1d4ed8; }
+  .btn-green { background: var(--green); color: #fff; border-color: var(--green); }
+  .btn-green:hover { background: #15803d; }
+  .btn-red { background: var(--red); color: #fff; border-color: var(--red); }
+  .btn-red:hover { background: #b91c1c; }
+  .btn-xs { padding: 3px 8px; font-size: 11px; }
+
+  /* TASK ITEMS */
+  .task-item { background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; display: flex; align-items: center; gap: 6px; margin-bottom: 5px; cursor: default; transition: border-color 0.15s; }
+  .task-item:hover { border-color: var(--border2); }
+  .task-item.priority { border-left: 3px solid var(--amber); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .task-item.dragging { opacity: 0.4; }
+  .task-item.drag-over { border-color: var(--blue); }
+  .drag-handle { color: var(--text3); font-size: 13px; cursor: grab; user-select: none; flex-shrink: 0; }
+  .drag-handle:active { cursor: grabbing; }
+  .task-text { flex: 1; font-size: 12px; color: var(--text); line-height: 1.4; }
+  .task-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; }
+  .task-item:hover .task-actions { opacity: 1; }
+  .star-btn { background: none; border: none; cursor: pointer; font-size: 13px; padding: 0 2px; line-height: 1; flex-shrink: 0; }
+
+  /* HABITS */
+  .habit-item { background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .habit-item.done { background: var(--green-bg); border-color: #86efac; }
+  .habit-done-cb { accent-color: var(--green); width: 14px; height: 14px; cursor: pointer; flex-shrink: 0; }
+  .streak-badge { font-size: 10px; background: var(--green-bg); color: var(--green); border: 0.5px solid #86efac; border-radius: 8px; padding: 2px 6px; white-space: nowrap; }
+
+  /* INPUTS */
+  input[type=text], input[type=number], input[type=time], textarea, select {
+    background: var(--surface2); border: 0.5px solid var(--border2); border-radius: var(--radius-sm);
+    padding: 6px 9px; font-size: 13px; color: var(--text); font-family: 'DM Sans', sans-serif; outline: none;
+  }
+  input[type=text]:focus, input[type=number]:focus, textarea:focus { border-color: var(--blue); }
+  textarea { resize: vertical; min-height: 56px; width: 100%; }
+  input[type=checkbox] { accent-color: var(--blue); width: 14px; height: 14px; cursor: pointer; }
+
+  /* TIMER */
+  .timer-display { font-family: 'DM Mono', monospace; font-size: 40px; font-weight: 500; color: var(--text); letter-spacing: 2px; }
+
+  /* PRIVACY */
+  .priv-toggle { font-size: 12px; cursor: pointer; color: var(--text2); display: flex; align-items: center; gap: 4px; user-select: none; border: 0.5px solid var(--border2); border-radius: 20px; padding: 3px 10px; background: var(--surface2); transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+  .priv-toggle:hover { background: var(--border); }
+  .blurred { filter: blur(6px); pointer-events: none; user-select: none; }
+
+  /* METRICS */
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+  .metric-box { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px 12px; text-align: center; border: 0.5px solid var(--border); }
+  .metric-num { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1; }
+  .metric-lbl { font-size: 10px; color: var(--text2); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .chart-panel { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px; border: 0.5px solid var(--border); }
+
+  /* TABS */
+  .tab-bar { display: flex; gap: 4px; }
+  .tab { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: transparent; color: var(--text2); font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
+  .tab.active { background: var(--text); color: var(--bg); }
+
+  /* HISTORY */
+  .history-list { max-height: 220px; overflow-y: auto; }
+  .history-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; }
+  .history-date { color: var(--text3); font-family: 'DM Mono', monospace; font-size: 11px; min-width: 72px; }
+  .history-quote { flex: 1; color: var(--text2); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* MODAL */
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.42); z-index: 500; align-items: center; justify-content: center; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 20px; width: 340px; }
+  .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+
+  /* THEME TOGGLE */
+  .theme-btn { position: fixed; top: 16px; right: 16px; z-index: 100; background: var(--surface); border: 0.5px solid var(--border2); border-radius: 20px; padding: 5px 12px; font-size: 12px; cursor: pointer; color: var(--text2); font-family: 'DM Sans', sans-serif; }
+
+  .section-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; }
+  .row { display: flex; align-items: center; gap: 7px; }
+  .save-btn-wrap { margin-top: 8px; }
+
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .lists-grid { grid-template-columns: 1fr; }
+    .topbar { grid-template-columns: 1fr; }
+    .metrics-grid { grid-template-columns: repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+
+<div class="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="day-card">
+      <div class="day-name" id="dayName">—</div>
+      <div class="day-date" id="dateStr">—</div>
+      <div class="rating-row">
+        <div class="rating-group">
+          <label class="lbl">Mood</label>
+          <div class="radio-strip">
+            <input type="radio" name="mood" id="m1" value="1"><label for="m1">😞</label>
+            <input type="radio" name="mood" id="m2" value="2"><label for="m2">😕</label>
+            <input type="radio" name="mood" id="m3" value="3"><label for="m3">😐</label>
+            <input type="radio" name="mood" id="m4" value="4"><label for="m4">🙂</label>
+            <input type="radio" name="mood" id="m5" value="5"><label for="m5">😄</label>
+          </div>
+        </div>
+        <div class="rating-group">
+          <label class="lbl">Day</label>
+          <div class="radio-strip">
+            <input type="radio" name="dayR" id="d1" value="1"><label for="d1">💩</label>
+            <input type="radio" name="dayR" id="d2" value="2"><label for="d2">😓</label>
+            <input type="radio" name="dayR" id="d3" value="3"><label for="d3">😊</label>
+            <input type="radio" name="dayR" id="d4" value="4"><label for="d4">🔥</label>
+            <input type="radio" name="dayR" id="d5" value="5"><label for="d5">🏆</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-card">
+      <div>
+        <div class="progress-header">
+          <span class="panel-title">Daily progress</span>
+          <div class="prog-controls">
+            <span style="font-size:11px;color:var(--text2)">Start</span>
+            <input type="time" id="wStart" value="09:00" style="width:82px;font-size:11px;padding:3px 6px" onchange="updateProg()">
+            <span style="font-size:11px;color:var(--text2)">End</span>
+            <input type="time" id="wEnd" value="17:00" style="width:82px;font-size:11px;padding:3px 6px" onchange="updateProg()">
+            <button class="btn btn-xs" onclick="document.getElementById('wStart').value='09:00';document.getElementById('wEnd').value='17:00';updateProg()">Reset</button>
+          </div>
+        </div>
+        <div class="prog-bar-track"><div class="prog-bar-fill" id="pFill" style="width:0%;background:#16a34a"></div></div>
+        <div class="prog-meta">
+          <span style="font-size:11px;color:var(--text3)" id="pPct">0%</span>
+          <span style="font-size:11px;color:var(--text3)" id="pLeft">—</span>
+        </div>
+      </div>
+      <div class="toggle-strip">
+        <span style="font-size:11px;color:var(--text2)">Show:</span>
+        <button class="chip on" id="tW" onclick="toggleCol('work')">Work Day</button>
+        <button class="chip on" id="tP" onclick="toggleCol('personal')">Personal</button>
+        <button class="chip on" id="tH" onclick="toggleCol('habits')">Daily Habits</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-grid">
+    <div>
+      <div class="lists-grid" id="listsGrid">
+        <!-- Work -->
+        <div id="colWork" class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Work day</span>
+            <div class="row"><span class="pill" id="cWork">0 tasks</span><button class="btn btn-xs btn-blue" onclick="openAdd('work')">+ Add</button></div>
+          </div>
+          <div id="workList"></div>
+        </div>
+        <!-- Personal -->
+        <div id="colPersonal" class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Personal</span>
+            <div class="row"><span class="pill" id="cPersonal">0 tasks</span><button class="btn btn-xs btn-blue" onclick="openAdd('personal')">+ Add</button></div>
+          </div>
+          <div id="personalList"></div>
+        </div>
+        <!-- Habits -->
+        <div id="colHabits" class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Daily habits</span>
+            <button class="btn btn-xs btn-blue" onclick="openAdd('habits')">+ Add</button>
+          </div>
+          <div id="habitList"></div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Metrics &amp; history</span>
+          <div class="tab-bar">
+            <button class="tab active" id="tabCharts" onclick="switchTab('charts')">Charts</button>
+            <button class="tab" id="tabHistory" onclick="switchTab('history')">Log</button>
+          </div>
+        </div>
+        <div id="panelCharts">
+          <div class="metrics-grid">
+            <div class="metric-box"><div class="metric-num" id="mAvgMood">—</div><div class="metric-lbl">Avg mood</div></div>
+            <div class="metric-box"><div class="metric-num" id="mAvgDay">—</div><div class="metric-lbl">Avg day</div></div>
+            <div class="metric-box"><div class="metric-num" id="mEntries">0</div><div class="metric-lbl">Entries</div></div>
+            <div class="metric-box"><div class="metric-num" id="mStreak">0</div><div class="metric-lbl">Day streak</div></div>
+          </div>
+          <div class="charts-row">
+            <div class="chart-panel"><div class="section-lbl" style="margin-bottom:6px">Mood trend</div><canvas id="moodCanvas" height="75"></canvas></div>
+            <div class="chart-panel"><div class="section-lbl" style="margin-bottom:6px">Day rating trend</div><canvas id="dayCanvas" height="75"></canvas></div>
+          </div>
+        </div>
+        <div id="panelHistory" style="display:none">
+          <div class="history-list" id="historyRows"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <!-- Timer -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Focus timer</span>
+          <div class="row">
+            <input type="number" id="timerMins" value="25" min="1" max="180" style="width:52px;font-size:12px;padding:3px 6px" onchange="timerReset()">
+            <span style="font-size:11px;color:var(--text2)">min</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:16px;padding:4px 0">
+          <div class="timer-display" id="timerDisp">25:00</div>
+          <canvas id="pieCvs" width="64" height="64"></canvas>
+        </div>
+        <div class="row" style="justify-content:center;gap:8px;margin-top:10px">
+          <button class="btn" onclick="timerReset()">Reset</button>
+          <button class="btn btn-green" id="timerBtn" onclick="timerToggle()">Start</button>
+        </div>
+      </div>
+
+      <!-- Reflection -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Daily reflection</span>
+          <button class="priv-toggle" onclick="togglePriv()" id="privLbl">👁 Visible</button>
+        </div>
+        <div id="reflWrap">
+          <div style="margin-bottom:9px">
+            <div class="section-lbl">I am grateful for...</div>
+            <textarea id="gratefulTx" placeholder="Write here..." oninput="saveRefl()"></textarea>
+          </div>
+          <div>
+            <div class="section-lbl">Greatest accomplishment today</div>
+            <textarea id="accomplishTx" placeholder="Write here..." oninput="saveRefl()"></textarea>
+          </div>
+          <div class="save-btn-wrap">
+            <button class="btn btn-blue" style="width:100%;justify-content:center" onclick="logEntry()" id="saveEntryBtn">Save today's entry</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD MODAL -->
+<div id="addModal" class="modal-backdrop" onclick="if(event.target===this)closeModal('add')">
+  <div class="modal">
+    <div class="modal-title" id="addModalTitle">Add task</div>
+    <input type="text" id="addInput" placeholder="Enter..." style="width:100%;margin-bottom:12px" onkeydown="if(event.key==='Enter')confirmAdd()">
+    <div class="row" style="justify-content:flex-end;gap:7px">
+      <button class="btn" onclick="closeModal('add')">Cancel</button>
+      <button class="btn btn-blue" onclick="confirmAdd()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="editModal" class="modal-backdrop" onclick="if(event.target===this)closeModal('edit')">
+  <div class="modal">
+    <div class="modal-title">Edit</div>
+    <input type="text" id="editInput" style="width:100%;margin-bottom:12px" onkeydown="if(event.key==='Enter')confirmEdit()">
+    <div class="row" style="justify-content:flex-end;gap:7px">
+      <button class="btn" onclick="closeModal('edit')">Cancel</button>
+      <button class="btn btn-blue" onclick="confirmEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const now=new Date();
+const todayKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+document.getElementById('dayName').textContent=DAYS[now.getDay()].toUpperCase();
+document.getElementById('dateStr').textContent=`${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+
+const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme'};
+function load(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+
+let tasks=load(SK.tasks,{
+  work:[{id:1,text:'Review project brief',star:true},{id:2,text:'Team standup',star:true},{id:3,text:'Send weekly report',star:false}],
+  personal:[{id:1,text:'Grocery shopping',star:true},{id:2,text:'Call family',star:false},{id:3,text:'Read 30 min',star:false}]
+});
+let habits=load(SK.habits,[
+  {id:1,text:'Morning walk',done:false,streak:3,lastDone:''},
+  {id:2,text:'Drink 8 glasses water',done:false,streak:7,lastDone:''},
+  {id:3,text:'Journal entry',done:false,streak:1,lastDone:''}
+]);
+let history=load(SK.history,[]);
+let settings=load(SK.settings,{wStart:'09:00',wEnd:'17:00',priv:false});
+let refl=load(SK.refl,{grateful:'',accomplish:''});
+let nextId=load(SK.nextid,{work:10,personal:10,habits:10});
+let vis={work:true,personal:true,habits:true};
+let addTarget='',editTarget={list:'',id:0};
+let timerTotal=25*60,timerLeft=25*60,timerRunning=false,timerIv=null;
+let moodChart=null,dayChart=null;
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function getTop3(list){return tasks[list].filter(t=>t.star).map(t=>t.id).slice(0,3);}
+
+function renderTasks(list,cid,countId){
+  const el=document.getElementById(cid);
+  const top3=getTop3(list);
+  el.innerHTML='';
+  tasks[list].forEach((t,i)=>{
+    const isP=top3.includes(t.id);
+    const d=document.createElement('div');
+    d.className='task-item'+(isP?' priority':'');
+    d.draggable=true;d.dataset.i=i;d.dataset.list=list;
+    d.innerHTML=`<span class="drag-handle">⠿</span><input type="checkbox" onchange="completeTask('${list}',${t.id})"><span class="task-text">${esc(t.text)}</span><button class="star-btn" onclick="toggleStar('${list}',${t.id})" title="Mark as top priority">${isP?'⭐':'☆'}</button><div class="task-actions"><button class="btn btn-xs" onclick="openEdit('${list}',${t.id})">Edit</button><button class="btn btn-xs btn-red" onclick="delTask('${list}',${t.id})">Del</button></div>`;
+    addDrag(d,list);el.appendChild(d);
+  });
+  document.getElementById(countId).textContent=`${tasks[list].length} tasks · ${top3.length} ⭐`;
+}
+
+function renderHabits(){
+  const el=document.getElementById('habitList');el.innerHTML='';
+  habits.forEach(h=>{
+    const d=document.createElement('div');
+    d.className='habit-item'+(h.done?' done':'');
+    d.innerHTML=`<input type="checkbox" class="habit-done-cb" ${h.done?'checked':''} onchange="toggleHabit(${h.id})"><span style="flex:1;font-size:12px;color:var(--text)">${esc(h.text)}</span><span class="streak-badge">🔥${h.streak}d</span><button class="btn btn-xs" onclick="openEdit('habits',${h.id})">Edit</button><button class="btn btn-xs btn-red" onclick="delHabit(${h.id})">Del</button>`;
+    el.appendChild(d);
+  });
+}
+
+function render(){renderTasks('work','workList','cWork');renderTasks('personal','personalList','cPersonal');renderHabits();updateMetrics();}
+
+function completeTask(list,id){tasks[list]=tasks[list].filter(t=>t.id!==id);save(SK.tasks,tasks);render();}
+function delTask(list,id){tasks[list]=tasks[list].filter(t=>t.id!==id);save(SK.tasks,tasks);render();}
+function toggleStar(list,id){
+  const t=tasks[list].find(t=>t.id===id);if(!t)return;
+  const top3=getTop3(list);
+  if(!t.star&&top3.length>=3){const o=tasks[list].find(x=>x.id===top3[2]);if(o)o.star=false;}
+  t.star=!t.star;save(SK.tasks,tasks);render();
+}
+function toggleHabit(id){
+  const h=habits.find(h=>h.id===id);if(!h)return;
+  h.done=!h.done;
+  if(h.done){if(h.lastDone!==todayKey){h.streak++;h.lastDone=todayKey;}}
+  else{if(h.lastDone===todayKey){h.streak=Math.max(0,h.streak-1);h.lastDone='';}}
+  save(SK.habits,habits);renderHabits();
+}
+function delHabit(id){habits=habits.filter(h=>h.id!==id);save(SK.habits,habits);renderHabits();}
+
+function openAdd(list){addTarget=list;document.getElementById('addModalTitle').textContent=list==='habits'?'Add habit':'Add task';document.getElementById('addInput').value='';document.getElementById('addModal').classList.add('open');setTimeout(()=>document.getElementById('addInput').focus(),60);}
+function confirmAdd(){
+  const v=document.getElementById('addInput').value.trim();if(!v)return;
+  if(addTarget==='habits'){habits.push({id:nextId.habits++,text:v,done:false,streak:0,lastDone:''});save(SK.habits,habits);}
+  else{tasks[addTarget].push({id:nextId[addTarget]++,text:v,star:false});save(SK.tasks,tasks);}
+  save(SK.nextid,nextId);closeModal('add');render();
+}
+function openEdit(list,id){
+  editTarget={list,id};
+  const src=list==='habits'?habits.find(h=>h.id===id):tasks[list].find(t=>t.id===id);
+  if(!src)return;
+  document.getElementById('editInput').value=src.text;
+  document.getElementById('editModal').classList.add('open');
+  setTimeout(()=>document.getElementById('editInput').focus(),60);
+}
+function confirmEdit(){
+  const v=document.getElementById('editInput').value.trim();if(!v)return;
+  if(editTarget.list==='habits'){const h=habits.find(h=>h.id===editTarget.id);if(h)h.text=v;save(SK.habits,habits);}
+  else{const t=tasks[editTarget.list].find(t=>t.id===editTarget.id);if(t)t.text=v;save(SK.tasks,tasks);}
+  closeModal('edit');render();
+}
+function closeModal(w){document.getElementById(w+'Modal').classList.remove('open');}
+
+function toggleCol(which){
+  vis[which]=!vis[which];
+  const m={work:'colWork',personal:'colPersonal',habits:'colHabits'};
+  const t={work:'tW',personal:'tP',habits:'tH'};
+  document.getElementById(m[which]).style.display=vis[which]?'':'none';
+  document.getElementById(t[which]).classList.toggle('on',vis[which]);
+  const count=Object.values(vis).filter(Boolean).length;
+  const grid=document.getElementById('listsGrid');
+  grid.setAttribute('data-cols',count);
+  grid.style.display=count===0?'none':'grid';
+}
+
+let dragSrc=null;
+function addDrag(el,list){
+  el.addEventListener('dragstart',e=>{dragSrc={i:+el.dataset.i,list};setTimeout(()=>el.classList.add('dragging'),0);});
+  el.addEventListener('dragend',()=>{el.classList.remove('dragging');document.querySelectorAll('.task-item').forEach(x=>x.classList.remove('drag-over'));});
+  el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('drag-over');});
+  el.addEventListener('dragleave',()=>el.classList.remove('drag-over'));
+  el.addEventListener('drop',e=>{
+    e.preventDefault();el.classList.remove('drag-over');
+    if(!dragSrc||dragSrc.list!==list)return;
+    const to=+el.dataset.i;if(dragSrc.i===to)return;
+    const [item]=tasks[list].splice(dragSrc.i,1);tasks[list].splice(to,0,item);
+    save(SK.tasks,tasks);render();
+  });
+}
+
+function updateProg(){
+  const n=new Date();
+  const [sh,sm]=document.getElementById('wStart').value.split(':').map(Number);
+  const [eh,em]=document.getElementById('wEnd').value.split(':').map(Number);
+  const sM=sh*60+sm,eM=eh*60+em,nM=n.getHours()*60+n.getMinutes();
+  const pct=Math.max(0,Math.min(1,(nM-sM)/(eM-sM)));
+  document.getElementById('pFill').style.width=Math.round(pct*100)+'%';
+  document.getElementById('pPct').textContent=Math.round(pct*100)+'% of workday elapsed';
+  const ml=eM-nM;
+  document.getElementById('pLeft').textContent=ml>0?`${Math.floor(ml/60)}h ${ml%60}m remaining`:'Workday complete';
+  const c=pct>0.9?'#dc2626':pct>0.75?'#d97706':pct>0.5?'#ca8a04':'#16a34a';
+  document.getElementById('pFill').style.backgroundColor=c;
+  settings.wStart=document.getElementById('wStart').value;
+  settings.wEnd=document.getElementById('wEnd').value;
+  save(SK.settings,settings);
+}
+document.getElementById('wStart').value=settings.wStart||'09:00';
+document.getElementById('wEnd').value=settings.wEnd||'17:00';
+setInterval(updateProg,60000);updateProg();
+
+function timerToggle(){
+  if(timerRunning){clearInterval(timerIv);timerRunning=false;document.getElementById('timerBtn').textContent='Resume';}
+  else{
+    if(timerLeft<=0){timerReset();return;}
+    timerRunning=true;document.getElementById('timerBtn').textContent='Pause';
+    timerIv=setInterval(()=>{timerLeft--;updateTimerUI();if(timerLeft<=0){clearInterval(timerIv);timerRunning=false;document.getElementById('timerBtn').textContent='Start';}},1000);
+  }
+}
+function timerReset(){clearInterval(timerIv);timerRunning=false;timerTotal=(parseInt(document.getElementById('timerMins').value)||25)*60;timerLeft=timerTotal;document.getElementById('timerBtn').textContent='Start';updateTimerUI();}
+function updateTimerUI(){
+  const m=Math.floor(timerLeft/60),s=timerLeft%60;
+  document.getElementById('timerDisp').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  drawPie();
+}
+function drawPie(){
+  const cv=document.getElementById('pieCvs'),ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,64,64);
+  const pct=timerLeft/Math.max(1,timerTotal);
+  const cx=32,cy=32,r=27;
+  const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  ctx.beginPath();ctx.arc(cx,cy,r,0,2*Math.PI);ctx.fillStyle=dark?'#2a2a28':'#e5e3de';ctx.fill();
+  if(pct>0){ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+2*Math.PI*pct);ctx.closePath();ctx.fillStyle=pct>0.3?'#d97706':'#dc2626';ctx.fill();}
+  ctx.beginPath();ctx.arc(cx,cy,r*0.5,0,2*Math.PI);ctx.fillStyle=dark?'#1c1c1b':'#ffffff';ctx.fill();
+}
+updateTimerUI();
+
+function saveRefl(){refl.grateful=document.getElementById('gratefulTx').value;refl.accomplish=document.getElementById('accomplishTx').value;save(SK.refl,refl);}
+function togglePriv(){
+  settings.priv=!settings.priv;save(SK.settings,settings);
+  document.getElementById('reflWrap').classList.toggle('blurred',settings.priv);
+  document.getElementById('privLbl').textContent=settings.priv?'🔒 Private':'👁 Visible';
+}
+if(settings.priv){document.getElementById('reflWrap').classList.add('blurred');document.getElementById('privLbl').textContent='🔒 Private';}
+document.getElementById('gratefulTx').value=refl.grateful||'';
+document.getElementById('accomplishTx').value=refl.accomplish||'';
+
+function logEntry(){
+  const mood=+(document.querySelector('input[name=mood]:checked')?.value||0);
+  const dayR=+(document.querySelector('input[name=dayR]:checked')?.value||0);
+  if(!mood||!dayR){alert('Please set your mood and day rating before saving.');return;}
+  const entry={date:todayKey,mood,day:dayR,grateful:refl.grateful,accomplish:refl.accomplish,timestamp:Date.now()};
+  const idx=history.findIndex(h=>h.date===todayKey);
+  if(idx>=0)history[idx]=entry;else history.push(entry);
+  history.sort((a,b)=>a.date.localeCompare(b.date));
+  save(SK.history,history);updateMetrics();
+  const btn=document.getElementById('saveEntryBtn');
+  btn.textContent='✓ Saved!';btn.style.background='#16a34a';
+  setTimeout(()=>{btn.textContent="Save today's entry";btn.style.background='';},2000);
+}
+
+function updateMetrics(){
+  const recent=history.slice(-30);
+  const avgMood=recent.length?recent.reduce((a,h)=>a+h.mood,0)/recent.length:null;
+  const avgDay=recent.length?recent.reduce((a,h)=>a+h.day,0)/recent.length:null;
+  document.getElementById('mEntries').textContent=history.length;
+  document.getElementById('mAvgMood').textContent=avgMood?avgMood.toFixed(1):'—';
+  document.getElementById('mAvgDay').textContent=avgDay?avgDay.toFixed(1):'—';
+  let streak=0;const sorted=[...history].sort((a,b)=>b.date.localeCompare(a.date));
+  let check=todayKey;
+  for(const h of sorted){if(h.date===check){streak++;const d=new Date(check);d.setDate(d.getDate()-1);check=d.toISOString().slice(0,10);}else if(h.date<check)break;}
+  document.getElementById('mStreak').textContent=streak;
+  buildCharts(recent);buildHistory();
+}
+
+function buildCharts(data){
+  const labels=data.map(h=>h.date.slice(5));
+  const moods=data.map(h=>h.mood);
+  const days=data.map(h=>h.day);
+  const opts=(color,d)=>({type:'line',data:{labels,datasets:[{data:d,borderColor:color,backgroundColor:color+'22',fill:true,tension:0.35,pointRadius:2,borderWidth:2}]},options:{animation:false,plugins:{legend:{display:false}},scales:{y:{min:1,max:5,ticks:{stepSize:1,font:{size:9},color:'#a09e98'},grid:{color:'rgba(128,128,128,0.08)'}},x:{ticks:{font:{size:9},maxTicksLimit:6,color:'#a09e98'},grid:{display:false}}}}});
+  if(moodChart)moodChart.destroy();if(dayChart)dayChart.destroy();
+  moodChart=new Chart(document.getElementById('moodCanvas').getContext('2d'),opts('#2563eb',moods));
+  dayChart=new Chart(document.getElementById('dayCanvas').getContext('2d'),opts('#16a34a',days));
+}
+
+function buildHistory(){
+  const el=document.getElementById('historyRows');
+  const me=['','😞','😕','😐','🙂','😄'],de=['','💩','😓','😊','🔥','🏆'];
+  if(!history.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:10px 0">No entries yet — save your first entry!</div>';return;}
+  el.innerHTML=[...history].reverse().map(h=>`<div class="history-row"><span class="history-date">${h.date}</span><span style="font-size:14px">${me[h.mood]}</span><span style="font-size:14px">${de[h.day]}</span><span class="history-quote">${h.grateful?'"'+esc(h.grateful.slice(0,50))+(h.grateful.length>50?'…':'')+ '"':''}</span></div>`).join('');
+}
+
+function switchTab(which){
+  document.getElementById('panelCharts').style.display=which==='charts'?'':'none';
+  document.getElementById('panelHistory').style.display=which==='history'?'':'none';
+  document.getElementById('tabCharts').classList.toggle('active',which==='charts');
+  document.getElementById('tabHistory').classList.toggle('active',which==='history');
+}
+
+function toggleTheme(){
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',isDark?'light':'dark');
+  document.getElementById('themeBtn').textContent=isDark?'🌙 Dark':'☀️ Light';
+  save(SK.theme,isDark?'light':'dark');
+  drawPie();
+}
+const savedTheme=load(SK.theme,'light');
+if(savedTheme==='dark'){document.documentElement.setAttribute('data-theme','dark');document.getElementById('themeBtn').textContent='☀️ Light';}
+
+const moodSaved=load(SK.mood,null);const daySaved=load(SK.day,null);
+if(moodSaved){const r=document.getElementById('m'+moodSaved);if(r)r.checked=true;}
+if(daySaved){const r=document.getElementById('d'+daySaved);if(r)r.checked=true;}
+document.querySelectorAll('input[name=mood]').forEach(r=>r.addEventListener('change',()=>save(SK.mood,r.value)));
+document.querySelectorAll('input[name=dayR]').forEach(r=>r.addEventListener('change',()=>save(SK.day,r.value)));
+
+render();
+</script>
+</body>
+</html>
