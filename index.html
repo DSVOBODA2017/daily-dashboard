@@ -485,7 +485,7 @@ function flushToCloud(){
   let chain=Promise.resolve();
   keys.forEach(k=>{
     chain=chain.then(()=>
-      fetch(GS_URL+'?action=set&key='+encodeURIComponent(k)+'&value='+encodeURIComponent(batch[k]))
+      fetch(GS_URL+'?action=set&key='+encodeURIComponent(k)+'&value='+encodeURIComponent(batch[k])+'&_='+Date.now(),{cache:'no-store'})
       .catch(()=>{
         // Re-queue failed writes
         _syncPending[k]=batch[k];
@@ -502,22 +502,34 @@ function flushToCloud(){
 
 function loadFromCloud(){
   showSyncStatus('Syncing...');
-  fetch(GS_URL+'?action=getAll')
-    .then(r=>r.json())
+  // Cache-bust with timestamp so browsers never serve a stale response
+  const bust=Date.now();
+  fetch(GS_URL+'?action=getAll&_='+bust,{
+    method:'GET',
+    cache:'no-store',
+    headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}
+  })
+    .then(r=>{
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
     .then(res=>{
-      if(res.success&&res.data){
+      if(res.success&&res.data&&Object.keys(res.data).length>0){
         Object.keys(res.data).forEach(k=>{
           if(res.data[k]!=null&&res.data[k]!==''){
-            try{localStorage.setItem(k,res.data[k]);}catch{}
+            try{localStorage.setItem(k,String(res.data[k]));}catch{}
           }
         });
+        showSyncStatus('Synced ✓');
+      } else {
+        showSyncStatus('No cloud data yet');
       }
-      showSyncStatus('Synced ✓');
       setTimeout(()=>showSyncStatus(''),2500);
       initApp();
     })
-    .catch(()=>{
-      showSyncStatus('Offline — local data');
+    .catch(err=>{
+      console.warn('Cloud sync failed:',err);
+      showSyncStatus('Using local data');
       setTimeout(()=>showSyncStatus(''),3000);
       initApp();
     });
