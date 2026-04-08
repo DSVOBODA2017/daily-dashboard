@@ -51,7 +51,7 @@
   .app { max-width: 1380px; margin: 0 auto; padding: 20px 16px; width: 100%; }
 
   /* TOP BAR */
-  .topbar { display: grid; grid-template-columns: auto 1fr; gap: 12px; margin-bottom: 14px; align-items: stretch; min-width: 0; }
+  .topbar { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; margin-bottom: 14px; align-items: stretch; min-width: 0; }
   .day-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px 18px; }
   .day-name { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
   .day-date { font-size: 12px; color: var(--text2); margin-bottom: 12px; }
@@ -76,13 +76,15 @@
 
   /* MAIN GRID */
   .main-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-  .lists-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; transition: grid-template-columns 0.2s ease; }
+  .lists-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; transition: grid-template-columns 0.2s ease; align-items: stretch; }
   .lists-grid[data-cols="1"] { grid-template-columns: minmax(0, 1fr); }
   .lists-grid[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lists-grid[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   /* CARDS */
   .panel { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px; }
+  .lists-grid > .panel { display:flex; flex-direction:column; height:100%; }
+  .task-list-container { display:flex; flex-direction:column; flex:1; }
   .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .panel-title { font-size: 13px; font-weight: 600; color: var(--text); text-transform: uppercase; letter-spacing: 0.5px; }
   .pill { font-size: 10px; background: var(--surface2); color: var(--text2); border: 0.5px solid var(--border); border-radius: 10px; padding: 2px 8px; }
@@ -129,8 +131,8 @@
   .habit-item:hover { border-color: var(--border2); }
   .habit-item.done { background: var(--green-bg); border-color: #86efac; }
   .habit-done-cb { accent-color: var(--green); width: 14px; height: 14px; cursor: pointer; flex-shrink: 0; }
-  .zero-state { text-align:center; padding: 18px 12px; color: var(--text3); font-size: 12px; border: 1px dashed var(--border2); border-radius: var(--radius-sm); }
-  .zero-state svg { display:block; margin: 0 auto 6px; opacity:0.4; }
+  .zero-state { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; min-height:120px; text-align:center; padding: 24px 16px; color: var(--text3); font-size: 12px; border: 1px dashed var(--border2); border-radius: var(--radius-sm); }
+  .zero-state svg { margin-bottom:8px; opacity:0.35; }
   .streak-badge { font-size: 10px; background: var(--green-bg); color: var(--green); border: 0.5px solid #86efac; border-radius: 8px; padding: 2px 6px; white-space: nowrap; }
 
   /* INPUTS */
@@ -181,7 +183,7 @@
   .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
 
   /* THEME TOGGLE */
-  .theme-btn { position: fixed; top: 16px; right: 16px; z-index: 100; background: var(--surface); border: 0.5px solid var(--border2); border-radius: 20px; padding: 5px 12px; font-size: 12px; cursor: pointer; color: var(--text2); font-family: 'DM Sans', sans-serif; }
+  .theme-btn { background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 20px; padding: 5px 12px; font-size: 11px; cursor: pointer; color: var(--text2); font-family: 'DM Sans', sans-serif; white-space: nowrap; }
 
   .section-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; }
   .row { display: flex; align-items: center; gap: 7px; }
@@ -194,6 +196,7 @@
     .lists-grid[data-cols="2"],
     .lists-grid[data-cols="3"] { grid-template-columns: 1fr; }
     .topbar { grid-template-columns: 1fr; }
+    .topbar > .panel { min-width: 0; }
     .metrics-grid { grid-template-columns: repeat(2, 1fr); }
     .charts-row { grid-template-columns: 1fr; }
     .task-actions { opacity: 1; }
@@ -221,11 +224,11 @@
     .rating-row { flex-direction: column; gap: 10px; }
     .toggle-strip { gap: 5px; }
     .chip { font-size: 12px; padding: 5px 12px; }
-    .theme-btn { top: 10px; right: 10px; padding: 4px 10px; font-size: 11px; }
+    .theme-btn { padding: 4px 10px; font-size: 11px; }
     .modal { padding: 16px; }
     .history-date { min-width: 58px; font-size: 10px; }
-    .zero-state { text-align:center; padding: 18px 12px; color: var(--text3); font-size: 12px; border: 1px dashed var(--border2); border-radius: var(--radius-sm); }
-  .zero-state svg { display:block; margin: 0 auto 6px; opacity:0.4; }
+    .zero-state { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; min-height:120px; text-align:center; padding: 24px 16px; color: var(--text3); font-size: 12px; border: 1px dashed var(--border2); border-radius: var(--radius-sm); }
+  .zero-state svg { margin-bottom:8px; opacity:0.35; }
   .streak-badge { font-size: 9px; padding: 2px 5px; }
   }
   @media (max-width: 480px) {
@@ -243,14 +246,15 @@
 </head>
 <body>
 
-<button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
-
 <div class="app">
 
   <!-- TOP BAR -->
   <div class="topbar">
     <div class="day-card">
-      <div class="day-name" id="dayName">—</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px">
+        <div class="day-name" id="dayName">—</div>
+        <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+      </div>
       <div class="day-date" id="dateStr">—</div>
       <div class="rating-row">
         <div class="rating-group">
@@ -311,29 +315,26 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- FOCUS TIMER -->
-  <div class="panel" style="margin-bottom:12px;text-align:center">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <span class="panel-title">FOCUS TIMER</span>
-      <input type="text" id="timerInput" value="00:25:00"
-        maxlength="8"
-        style="width:110px;font-size:14px;font-family:'DM Mono',monospace;text-align:center;letter-spacing:2px;padding:4px 8px"
-        placeholder="hh:mm:ss"
-        onchange="timerInputChanged()"
-        onblur="timerInputChanged()">
-    </div>
-    <div style="display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;padding:4px 8px">
-      <div class="timer-display" id="timerDisp">25:00</div>
-      <svg id="timerSvg" width="60" height="60" viewBox="0 0 60 60" style="flex-shrink:0">
-        <circle id="timerTrack" cx="30" cy="30" r="28" fill="#e5e3de"/>
-        <path id="timerArc" fill="#d97706"/>
-      </svg>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px">
-      <button class="btn" onclick="timerReset()">Reset</button>
-      <button class="btn btn-green" id="timerBtn" onclick="timerToggle()">Start</button>
+    <!-- FOCUS TIMER (3rd column) -->
+    <div class="panel" style="text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:180px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span class="panel-title">FOCUS TIMER</span>
+        <input type="text" id="timerInput" value="00:25:00"
+          maxlength="8"
+          style="width:100px;font-size:13px;font-family:'DM Mono',monospace;text-align:center;letter-spacing:1px;padding:3px 6px"
+          placeholder="hh:mm:ss"
+          onchange="timerInputChanged()"
+          onblur="timerInputChanged()">
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap">
+        <div class="timer-display" id="timerDisp">25:00</div>
+        <canvas id="hgCanvas" width="64" height="88" style="flex-shrink:0;image-rendering:pixelated"></canvas>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px">
+        <button class="btn btn-sm" onclick="timerReset()">Reset</button>
+        <button class="btn btn-sm btn-green" id="timerBtn" onclick="timerToggle()">Start</button>
+      </div>
     </div>
   </div>
 
@@ -365,7 +366,7 @@
               <span class="panel-title">WORK DAY</span>
               <div class="row"><span class="pill" id="cWork">0 tasks</span><button class="btn btn-xs btn-blue" onclick="openAdd('work')">+ Add</button></div>
             </div>
-            <div id="workList"></div>
+            <div id="workList" class="task-list-container"></div>
           </div>
           <!-- Personal -->
           <div id="colPersonal" class="panel">
@@ -373,7 +374,7 @@
               <span class="panel-title">PERSONAL</span>
               <div class="row"><span class="pill" id="cPersonal">0 tasks</span><button class="btn btn-xs btn-blue" onclick="openAdd('personal')">+ Add</button></div>
             </div>
-            <div id="personalList"></div>
+            <div id="personalList" class="task-list-container"></div>
           </div>
           <!-- Habits -->
           <div id="colHabits" class="panel">
@@ -381,7 +382,7 @@
               <span class="panel-title">DAILY HABITS</span>
               <button class="btn btn-xs btn-blue" onclick="openAdd('habits')">+ Add</button>
             </div>
-            <div id="habitList"></div>
+            <div id="habitList" class="task-list-container"></div>
           </div>
           </div>
         </div>
@@ -768,10 +769,13 @@ function timerToggle(){
   else{
     if(timerLeft<=0){timerReset();return;}
     timerRunning=true;document.getElementById('timerBtn').textContent='Pause';
+    drawPie();
+    startDropAnim();
     timerIv=setInterval(()=>{
       timerLeft--;updateTimerUI();
       if(timerLeft<=0){
         clearInterval(timerIv);timerRunning=false;
+        stopDropAnim();
         document.getElementById('timerBtn').textContent='Start';
         playChime();
         const d=document.getElementById('timerDisp');
@@ -815,6 +819,7 @@ function timerReset(){
   timerTotal=parseTimerInput()||60;
   timerLeft=timerTotal;
   updateTimerUI();
+  startDropAnim();
 }
 function updateTimerUI(){
   const h=Math.floor(timerLeft/3600);
@@ -826,26 +831,126 @@ function updateTimerUI(){
   document.getElementById('timerDisp').textContent=disp;
   drawPie();
 }
+
+let _rafId=null;
+function startDropAnim(){
+  if(_rafId)return;
+  function loop(){drawPie();_rafId=requestAnimationFrame(loop);}
+  _rafId=requestAnimationFrame(loop);
+}
+function stopDropAnim(){
+  if(_rafId){cancelAnimationFrame(_rafId);_rafId=null;}
+}
+// Falling pixel positions [y, phase 0-1]
+const NUM_DROPS=4;
+let dropState=[];
+for(let i=0;i<NUM_DROPS;i++) dropState.push({phase:i/NUM_DROPS,xOff:[-1,1,-2,2][i]});
+
 function drawPie(){
-  const arc=document.getElementById('timerArc');
-  const track=document.getElementById('timerTrack');
-  if(!arc)return;
-  const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  const cv=document.getElementById('hgCanvas');
+  if(!cv)return;
+  const ctx=cv.getContext('2d');
+  const W=64,H=88;
   const pct=timerLeft/Math.max(1,timerTotal);
-  track.setAttribute('fill',dark?'#2a2a28':'#e5e3de');
-  arc.setAttribute('fill',pct>0.3?'#d97706':'#dc2626');
-  if(pct<=0){arc.setAttribute('d','');return;}
-  if(pct>=1){
-    arc.setAttribute('d','M30,30 m-28,0 a28,28 0 1,1 56,0 a28,28 0 1,1 -56,0');
-    return;
+  const elapsed=1-pct;
+  const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  const sandColor=pct>0.3?'#d97706':'#dc2626';
+  const frameColor=dark?'#9a9890':'#5f5e5a';
+  const bgColor=dark?'#1c1c1b':'#ffffff';
+  const emptyColor=dark?'#2a2a28':'#f0ede8';
+
+  const PX=3;
+  // Hourglass geometry — WIDE at top & bottom, NARROW at waist (centre)
+  // Top chamber:    wide edge at topY (y=5),  point at waistY (y=44)
+  // Bottom chamber: point at waistY (y=44),   wide edge at botY (y=83)
+  const cx=32;
+  const topY=5, waistY=44, botY=83;
+  const maxHW=24; // half-width at the wide ends
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=bgColor;
+  ctx.fillRect(0,0,W,H);
+
+  // Top chamber: wide at topY, narrows to point at waistY
+  // hw at row py = maxHW * (waistY - py) / (waistY - topY)
+  function hwTop(py){ return maxHW*(waistY-py)/(waistY-topY); }
+  // Bottom chamber: point at waistY, widens to maxHW at botY
+  // hw at row py = maxHW * (py - waistY) / (botY - waistY)
+  function hwBot(py){ return maxHW*(py-waistY)/(botY-waistY); }
+
+  function inTop(px,py){
+    if(py<topY||py>waistY) return false;
+    const hw=hwTop(py); return px>=cx-hw&&px<=cx+hw;
   }
-  const angle=pct*2*Math.PI;
-  const x=30+28*Math.sin(angle);
-  const y=30-28*Math.cos(angle);
-  const large=pct>0.5?1:0;
-  arc.setAttribute('d',`M30,30 L30,2 A28,28 0 ${large},1 ${x.toFixed(3)},${y.toFixed(3)} Z`);
+  function inBot(px,py){
+    if(py<waistY||py>botY) return false;
+    const hw=hwBot(py); return px>=cx-hw&&px<=cx+hw;
+  }
+
+  // Empty chamber background
+  ctx.fillStyle=emptyColor;
+  for(let py=topY;py<=waistY;py+=PX)
+    for(let px=cx-maxHW;px<=cx+maxHW;px+=PX)
+      if(inTop(px+PX/2,py+PX/2)) ctx.fillRect(px,py,PX-0.5,PX-0.5);
+  for(let py=waistY;py<=botY;py+=PX)
+    for(let px=cx-maxHW;px<=cx+maxHW;px+=PX)
+      if(inBot(px+PX/2,py+PX/2)) ctx.fillRect(px,py,PX-0.5,PX-0.5);
+
+  // Top sand: starts full, surface drops toward waistY as pct→0
+  // Sand occupies rows from topY up to sandSurfaceY
+  // At pct=1: sandSurfaceY=topY (all sand, full chamber)
+  // At pct=0: sandSurfaceY=waistY (empty)
+  const topH=waistY-topY;
+  const sandSurfaceY=waistY-topH*pct; // moves from topY→waistY as time runs out
+  ctx.fillStyle=sandColor;
+  for(let py=sandSurfaceY;py<=waistY;py+=PX)
+    for(let px=cx-maxHW;px<=cx+maxHW;px+=PX)
+      if(inTop(px+PX/2,py+PX/2)) ctx.fillRect(px,py,PX-0.5,PX-0.5);
+
+  // Bottom sand: starts empty, fills from botY upward as elapsed→1
+  // At elapsed=0: botSandSurfaceY=botY (empty)
+  // At elapsed=1: botSandSurfaceY=waistY (full)
+  const botH=botY-waistY;
+  const botSandSurfaceY=botY-botH*elapsed;
+  ctx.fillStyle=sandColor;
+  for(let py=botSandSurfaceY;py<=botY;py+=PX)
+    for(let px=cx-maxHW;px<=cx+maxHW;px+=PX)
+      if(inBot(px+PX/2,py+PX/2)) ctx.fillRect(px,py,PX-0.5,PX-0.5);
+
+  // Falling pixel grains — show whenever timer is running and not complete
+  if(timerRunning&&pct>0&&pct<1){
+    const now=Date.now();
+    // fallDist grows as bottom fills — minimum 4px so grains always visible
+    const fallDist=Math.max(PX*4, botSandSurfaceY-waistY-PX);
+    ctx.fillStyle=sandColor;
+    for(let i=0;i<NUM_DROPS;i++){
+      const t=((now/320)+dropState[i].phase*NUM_DROPS)%1;
+      const gx=Math.round(cx+dropState[i].xOff*PX*0.4);
+      const gy=waistY+t*fallDist;
+      ctx.fillRect(gx-PX/2, gy, PX, PX);
+    }
+  }
+
+  // Frame lines — must exactly match the geometry above
+  ctx.strokeStyle=frameColor;
+  ctx.lineWidth=2;
+  ctx.lineCap='round';
+  ctx.lineJoin='round';
+  // Top cap
+  ctx.beginPath();ctx.moveTo(cx-maxHW-1,topY);ctx.lineTo(cx+maxHW+1,topY);ctx.stroke();
+  // Bottom cap
+  ctx.beginPath();ctx.moveTo(cx-maxHW-1,botY);ctx.lineTo(cx+maxHW+1,botY);ctx.stroke();
+  // Left side: top-left corner → waist point
+  ctx.beginPath();ctx.moveTo(cx-maxHW,topY);ctx.lineTo(cx,waistY);ctx.stroke();
+  // Right side: top-right corner → waist point
+  ctx.beginPath();ctx.moveTo(cx+maxHW,topY);ctx.lineTo(cx,waistY);ctx.stroke();
+  // Left side: waist point → bottom-left corner
+  ctx.beginPath();ctx.moveTo(cx,waistY);ctx.lineTo(cx-maxHW,botY);ctx.stroke();
+  // Right side: waist point → bottom-right corner
+  ctx.beginPath();ctx.moveTo(cx,waistY);ctx.lineTo(cx+maxHW,botY);ctx.stroke();
 }
 updateTimerUI();
+startDropAnim();
 
 function saveRefl(){refl.grateful=document.getElementById('gratefulTx').value;refl.accomplish=document.getElementById('accomplishTx').value;save(SK.refl,refl);}
 function toggleRefl(){
