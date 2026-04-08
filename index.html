@@ -255,6 +255,7 @@
         <div class="day-name" id="dayName">—</div>
         <div style="display:flex;align-items:center;gap:8px">
           <span id="syncStatus" style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace"></span>
+          <button onclick="syncNow()" style="background:none;border:0.5px solid var(--border2);border-radius:12px;padding:2px 8px;font-size:10px;cursor:pointer;color:var(--text2);font-family:'DM Sans',sans-serif" title="Force sync to cloud">⟳ Sync</button>
           <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
         </div>
       </div>
@@ -464,79 +465,95 @@ const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'
 const GS_URL='https://script.google.com/macros/s/AKfycbxAjW1BJFW-1GgmC1vx5H_RGa7ltPcaPLNWJY4YvQSwRf1jQxx2aCCRFwqMwr77Jibt1Q/exec';
 let _syncPending={};
 let _syncTimer=null;
+let _syncing=false;
 
-// Always read/write localStorage immediately for snappy UI
 function load(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
+
 function save(k,v){
   try{localStorage.setItem(k,JSON.stringify(v));}catch{}
-  // Debounce cloud sync — batch writes every 2s
   _syncPending[k]=JSON.stringify(v);
   if(_syncTimer)clearTimeout(_syncTimer);
-  _syncTimer=setTimeout(flushToCloud,2000);
+  _syncTimer=setTimeout(flushToCloud,1500);
+}
+
+function gsUrl(params){
+  const qs=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
+  return GS_URL+'?'+qs+'&_='+Date.now();
 }
 
 function flushToCloud(){
+  if(_syncing)return;
   const keys=Object.keys(_syncPending);
   if(!keys.length)return;
   const batch={..._syncPending};
   _syncPending={};
-  // Send each key as a GET request (Apps Script Web Apps work best with GET)
-  // Split into sequential requests to avoid rate limits
+  _syncing=true;
+  showSyncStatus('Saving...');
+
   let chain=Promise.resolve();
   keys.forEach(k=>{
-    chain=chain.then(()=>
-      fetch(GS_URL+'?action=set&key='+encodeURIComponent(k)+'&value='+encodeURIComponent(batch[k])+'&_='+Date.now(),{cache:'no-store'})
-      .catch(()=>{
-        // Re-queue failed writes
-        _syncPending[k]=batch[k];
-      })
-    );
+    chain=chain.then(()=>{
+      const url=gsUrl({action:'set',key:k,value:batch[k]});
+      return fetch(url,{cache:'no-store'})
+        .then(r=>r.json())
+        .then(res=>{ if(!res.success) throw new Error('Set failed for '+k); })
+        .catch(err=>{
+          console.warn('Sync write failed for',k,err);
+          _syncPending[k]=batch[k];
+        });
+    });
   });
+
   chain.then(()=>{
+    _syncing=false;
     if(Object.keys(_syncPending).length){
-      if(_syncTimer)clearTimeout(_syncTimer);
+      showSyncStatus('Retry...');
       _syncTimer=setTimeout(flushToCloud,5000);
+    } else {
+      showSyncStatus('Saved ✓');
+      setTimeout(()=>showSyncStatus(''),2000);
     }
   });
 }
 
 function loadFromCloud(){
   showSyncStatus('Syncing...');
-  // Cache-bust with timestamp so browsers never serve a stale response
-  const bust=Date.now();
-  fetch(GS_URL+'?action=getAll&_='+bust,{
-    method:'GET',
-    cache:'no-store',
-    headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}
-  })
-    .then(r=>{
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      return r.json();
-    })
+  fetch(gsUrl({action:'getAll'}),{cache:'no-store'})
+    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
     .then(res=>{
       if(res.success&&res.data&&Object.keys(res.data).length>0){
         Object.keys(res.data).forEach(k=>{
-          if(res.data[k]!=null&&res.data[k]!==''){
-            try{localStorage.setItem(k,String(res.data[k]));}catch{}
-          }
+          const v=res.data[k];
+          if(v!=null&&v!=='') try{localStorage.setItem(k,String(v));}catch{}
         });
         showSyncStatus('Synced ✓');
       } else {
-        showSyncStatus('No cloud data yet');
+        showSyncStatus('Ready');
       }
-      setTimeout(()=>showSyncStatus(''),2500);
+      setTimeout(()=>showSyncStatus(''),2000);
       initApp();
     })
     .catch(err=>{
-      console.warn('Cloud sync failed:',err);
-      showSyncStatus('Using local data');
-      setTimeout(()=>showSyncStatus(''),3000);
+      console.warn('Load from cloud failed:',err);
+      showSyncStatus('Offline');
+      setTimeout(()=>showSyncStatus(''),2500);
       initApp();
     });
 }
 
+function syncNow(){
+  // Force push all current state to cloud immediately
+  const allKeys=Object.values(SK);
+  allKeys.forEach(k=>{
+    const v=localStorage.getItem(k);
+    if(v!=null) _syncPending[k]=v;
+  });
+  if(_syncTimer)clearTimeout(_syncTimer);
+  flushToCloud();
+}
+
 function showSyncStatus(msg){
-  let el=document.getElementById('syncStatus');
+  const el=document.getElementById('syncStatus');
   if(el)el.textContent=msg;
 }
 
