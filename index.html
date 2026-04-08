@@ -51,7 +51,7 @@
   .app { max-width: 1380px; margin: 0 auto; padding: 20px 16px; width: 100%; }
 
   /* TOP BAR */
-  .topbar { display: grid; grid-template-columns: auto 1fr; gap: 12px; margin-bottom: 14px; align-items: start; min-width: 0; }
+  .topbar { display: grid; grid-template-columns: auto 1fr; gap: 12px; margin-bottom: 14px; align-items: stretch; min-width: 0; }
   .day-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px 18px; }
   .day-name { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
   .day-date { font-size: 12px; color: var(--text2); margin-bottom: 12px; }
@@ -75,7 +75,7 @@
   .chip.on { background: var(--text); color: var(--bg); border-color: var(--text); }
 
   /* MAIN GRID */
-  .main-grid { display: grid; grid-template-columns: 1fr 300px; gap: 12px; }
+  .main-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
   .lists-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; transition: grid-template-columns 0.2s ease; }
   .lists-grid[data-cols="1"] { grid-template-columns: minmax(0, 1fr); }
   .lists-grid[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -146,9 +146,6 @@
   .timer-display { font-family: 'DM Mono', monospace; font-size: 42px; font-weight: 500; color: var(--text); letter-spacing: 3px; white-space: nowrap; line-height: 1; }
 
   /* PRIVACY */
-  .priv-toggle { font-size: 12px; cursor: pointer; color: var(--text2); display: flex; align-items: center; gap: 4px; user-select: none; border: 0.5px solid var(--border2); border-radius: 20px; padding: 3px 10px; background: var(--surface2); transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
-  .priv-toggle:hover { background: var(--border); }
-  .blurred { filter: blur(6px); pointer-events: none; user-select: none; }
 
   /* METRICS */
   .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
@@ -273,6 +270,22 @@
           </div>
         </div>
       </div>
+      <div style="border-top:0.5px solid var(--border);margin-top:10px;padding-top:8px">
+        <button onclick="toggleRefl()" id="reflToggleBtn" style="background:none;border:none;cursor:pointer;font-size:11px;font-weight:600;letter-spacing:0.5px;color:var(--text2);font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px;padding:0;text-transform:uppercase">
+          <span id="reflChevron" style="font-size:10px;transition:transform 0.2s">▶</span> Daily Reflection
+        </button>
+        <div id="reflWrap" style="display:none;margin-top:10px">
+          <div style="margin-bottom:8px">
+            <div class="section-lbl">I am grateful for...</div>
+            <textarea id="gratefulTx" placeholder="Write here..." oninput="saveRefl()" style="font-size:12px;min-height:48px"></textarea>
+          </div>
+          <div style="margin-bottom:8px">
+            <div class="section-lbl">Greatest accomplishment today</div>
+            <textarea id="accomplishTx" placeholder="Write here..." oninput="saveRefl()" style="font-size:12px;min-height:48px"></textarea>
+          </div>
+          <button class="btn btn-blue" style="width:100%;justify-content:center;font-size:12px" onclick="logEntry()" id="saveEntryBtn">Save today's entry</button>
+        </div>
+      </div>
     </div>
 
     <div class="progress-card">
@@ -292,12 +305,6 @@
           <span style="font-size:11px;color:var(--text3)" id="pPct">0%</span>
           <span style="font-size:11px;color:var(--text3)" id="pLeft">—</span>
         </div>
-      </div>
-      <div class="toggle-strip">
-        <span style="font-size:11px;font-weight:600;letter-spacing:0.4px;color:var(--text2)">SHOW:</span>
-        <button class="chip on" id="tW" onclick="toggleCol('work')">Work Day</button>
-        <button class="chip on" id="tP" onclick="toggleCol('personal')">Personal</button>
-        <button class="chip on" id="tH" onclick="toggleCol('habits')">Daily Habits</button>
       </div>
     </div>
   </div>
@@ -337,7 +344,17 @@
 
       <!-- Dashboard tab -->
       <div id="mainPanelDashboard">
-        <div class="lists-grid" id="listsGrid">
+        <div class="panel" style="margin-bottom:12px;padding-bottom:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+            <span class="panel-title">TO DO LISTS</span>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-size:11px;font-weight:600;letter-spacing:0.4px;color:var(--text2)">SHOW:</span>
+              <button class="chip on" id="tW" onclick="toggleCol('work')">Work Day</button>
+              <button class="chip on" id="tP" onclick="toggleCol('personal')">Personal</button>
+              <button class="chip on" id="tH" onclick="toggleCol('habits')">Daily Habits</button>
+            </div>
+          </div>
+          <div class="lists-grid" id="listsGrid">
           <!-- Work -->
           <div id="colWork" class="panel">
             <div class="panel-header">
@@ -361,6 +378,7 @@
               <button class="btn btn-xs btn-blue" onclick="openAdd('habits')">+ Add</button>
             </div>
             <div id="habitList"></div>
+          </div>
           </div>
         </div>
       </div>
@@ -394,29 +412,6 @@
       </div>
     </div>
 
-    <!-- RIGHT COLUMN -->
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <!-- Reflection -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">DAILY REFLECTION</span>
-          <button class="priv-toggle" onclick="togglePriv()" id="privLbl">👁 Visible</button>
-        </div>
-        <div id="reflWrap">
-          <div style="margin-bottom:9px">
-            <div class="section-lbl">I am grateful for...</div>
-            <textarea id="gratefulTx" placeholder="Write here..." oninput="saveRefl()"></textarea>
-          </div>
-          <div>
-            <div class="section-lbl">Greatest accomplishment today</div>
-            <textarea id="accomplishTx" placeholder="Write here..." oninput="saveRefl()"></textarea>
-          </div>
-          <div class="save-btn-wrap">
-            <button class="btn btn-blue" style="width:100%;justify-content:center" onclick="logEntry()" id="saveEntryBtn">Save today's entry</button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -837,12 +832,18 @@ function drawPie(){
 updateTimerUI();
 
 function saveRefl(){refl.grateful=document.getElementById('gratefulTx').value;refl.accomplish=document.getElementById('accomplishTx').value;save(SK.refl,refl);}
-function togglePriv(){
-  settings.priv=!settings.priv;save(SK.settings,settings);
-  document.getElementById('reflWrap').classList.toggle('blurred',settings.priv);
-  document.getElementById('privLbl').textContent=settings.priv?'🔒 Private':'👁 Visible';
+function toggleRefl(){
+  const wrap=document.getElementById('reflWrap');
+  const chevron=document.getElementById('reflChevron');
+  const open=wrap.style.display==='none'||wrap.style.display==='';
+  wrap.style.display=open?'block':'none';
+  chevron.style.transform=open?'rotate(90deg)':'rotate(0deg)';
+  settings.reflOpen=open;save(SK.settings,settings);
 }
-if(settings.priv){document.getElementById('reflWrap').classList.add('blurred');document.getElementById('privLbl').textContent='🔒 Private';}
+if(settings.reflOpen){
+  document.getElementById('reflWrap').style.display='block';
+  document.getElementById('reflChevron').style.transform='rotate(90deg)';
+}
 document.getElementById('gratefulTx').value=refl.grateful||'';
 document.getElementById('accomplishTx').value=refl.accomplish||'';
 
