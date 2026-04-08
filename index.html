@@ -129,6 +129,8 @@
   .habit-item:hover { border-color: var(--border2); }
   .habit-item.done { background: var(--green-bg); border-color: #86efac; }
   .habit-done-cb { accent-color: var(--green); width: 14px; height: 14px; cursor: pointer; flex-shrink: 0; }
+  .zero-state { text-align:center; padding: 18px 12px; color: var(--text3); font-size: 12px; border: 1px dashed var(--border2); border-radius: var(--radius-sm); }
+  .zero-state svg { display:block; margin: 0 auto 6px; opacity:0.4; }
   .streak-badge { font-size: 10px; background: var(--green-bg); color: var(--green); border: 0.5px solid #86efac; border-radius: 8px; padding: 2px 6px; white-space: nowrap; }
 
   /* INPUTS */
@@ -222,7 +224,9 @@
     .theme-btn { top: 10px; right: 10px; padding: 4px 10px; font-size: 11px; }
     .modal { padding: 16px; }
     .history-date { min-width: 58px; font-size: 10px; }
-    .streak-badge { font-size: 9px; padding: 2px 5px; }
+    .zero-state { text-align:center; padding: 18px 12px; color: var(--text3); font-size: 12px; border: 1px dashed var(--border2); border-radius: var(--radius-sm); }
+  .zero-state svg { display:block; margin: 0 auto 6px; opacity:0.4; }
+  .streak-badge { font-size: 9px; padding: 2px 5px; }
   }
   @media (max-width: 480px) {
 
@@ -490,6 +494,12 @@ function renderTasks(list,cid,countId){
     d.innerHTML=`<input type="checkbox" style="flex-shrink:0;cursor:pointer" onmousedown="event.stopPropagation()" onchange="completeTask('${list}',${t.id})"><span class="task-text">${esc(t.text)}</span><button class="star-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleStar('${list}',${t.id})" title="Mark as top priority">${isP?'<svg width="14" height="14" viewBox="0 0 24 24" fill="#d97706" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'}</button><div class="task-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('${list}',${t.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delTask('${list}',${t.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>`;
     addDrag(d,list);el.appendChild(d);
   });
+  if(tasks[list].length===0){
+    const z=document.createElement('div');
+    z.className='zero-state';
+    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 9h18"/><path d="M9 14h6M9 17h4"/></svg>No tasks yet — add one above`;
+    el.appendChild(z);
+  }
   document.getElementById(countId).textContent=`${tasks[list].length} tasks · ${top3.length} ★`;
 }
 
@@ -501,6 +511,12 @@ function renderHabits(){
     d.innerHTML=`<input type="checkbox" class="habit-done-cb" ${h.done?'checked':''} onchange="toggleHabit(${h.id})"><span style="flex:1;font-size:12px;color:var(--text)">${esc(h.text)}</span><span class="streak-badge">🔥${h.streak}d</span><div class="habit-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('habits',${h.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit(${h.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>`;
     el.appendChild(d);
   });
+  if(habits.length===0){
+    const z=document.createElement('div');
+    z.className='zero-state';
+    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>No habits yet — add one above`;
+    el.appendChild(z);
+  }
 }
 
 function moveTask(list,idx,dir){
