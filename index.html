@@ -480,9 +480,23 @@ function flushToCloud(){
   if(!keys.length)return;
   const batch={..._syncPending};
   _syncPending={};
+  // Send each key as a GET request (Apps Script Web Apps work best with GET)
+  // Split into sequential requests to avoid rate limits
+  let chain=Promise.resolve();
   keys.forEach(k=>{
-    const url=GS_URL+'?action=set&key='+encodeURIComponent(k)+'&value='+encodeURIComponent(batch[k]);
-    fetch(url).catch(()=>{});
+    chain=chain.then(()=>
+      fetch(GS_URL+'?action=set&key='+encodeURIComponent(k)+'&value='+encodeURIComponent(batch[k]))
+      .catch(()=>{
+        // Re-queue failed writes
+        _syncPending[k]=batch[k];
+      })
+    );
+  });
+  chain.then(()=>{
+    if(Object.keys(_syncPending).length){
+      if(_syncTimer)clearTimeout(_syncTimer);
+      _syncTimer=setTimeout(flushToCloud,5000);
+    }
   });
 }
 
@@ -514,19 +528,13 @@ function showSyncStatus(msg){
   if(el)el.textContent=msg;
 }
 
-let tasks=load(SK.tasks,{
-  work:[{id:1,text:'Review project brief',star:true},{id:2,text:'Team standup',star:true},{id:3,text:'Send weekly report',star:false}],
-  personal:[{id:1,text:'Grocery shopping',star:true},{id:2,text:'Call family',star:false},{id:3,text:'Read 30 min',star:false}]
-});
-let habits=load(SK.habits,[
-  {id:1,text:'Morning walk',done:false,streak:3,lastDone:''},
-  {id:2,text:'Drink 8 glasses water',done:false,streak:7,lastDone:''},
-  {id:3,text:'Journal entry',done:false,streak:1,lastDone:''}
-]);
-let history=load(SK.history,[]);
-let settings=load(SK.settings,{wStart:'09:00',wEnd:'17:00',priv:false});
-let refl=load(SK.refl,{grateful:'',accomplish:''});
-let nextId=load(SK.nextid,{work:10,personal:10,habits:10});
+// State — populated inside initApp() AFTER cloud sync completes
+let tasks={work:[],personal:[]};
+let habits=[];
+let history=[];
+let settings={wStart:'09:00',wEnd:'17:00',priv:false,reflOpen:false};
+let refl={grateful:'',accomplish:''};
+let nextId={work:10,personal:10,habits:10};
 let vis={work:true,personal:true,habits:true};
 let addTarget='',editTarget={list:'',id:0};
 let timerTotal=25*60,timerLeft=25*60,timerRunning=false,timerIv=null;
@@ -1092,12 +1100,19 @@ function initApp(){
   if(moodSaved){const r=document.getElementById('m'+moodSaved);if(r)r.checked=true;}
   if(daySaved){const r=document.getElementById('d'+daySaved);if(r)r.checked=true;}
 
-  tasks=load(SK.tasks,tasks);
-  habits=load(SK.habits,habits);
-  history=load(SK.history,history);
-  settings=load(SK.settings,settings);
-  refl=load(SK.refl,refl);
-  nextId=load(SK.nextid,nextId);
+  tasks=load(SK.tasks,{
+    work:[{id:1,text:'Review project brief',star:true},{id:2,text:'Team standup',star:true},{id:3,text:'Send weekly report',star:false}],
+    personal:[{id:1,text:'Grocery shopping',star:true},{id:2,text:'Call family',star:false},{id:3,text:'Read 30 min',star:false}]
+  });
+  habits=load(SK.habits,[
+    {id:1,text:'Morning walk',done:false,streak:3,lastDone:''},
+    {id:2,text:'Drink 8 glasses water',done:false,streak:7,lastDone:''},
+    {id:3,text:'Journal entry',done:false,streak:1,lastDone:''}
+  ]);
+  history=load(SK.history,[]);
+  settings=load(SK.settings,{wStart:'09:00',wEnd:'17:00',priv:false,reflOpen:false});
+  refl=load(SK.refl,{grateful:'',accomplish:''});
+  nextId=load(SK.nextid,{work:10,personal:10,habits:10});
 
   document.getElementById('wStart').value=settings.wStart||'09:00';
   document.getElementById('wEnd').value=settings.wEnd||'17:00';
