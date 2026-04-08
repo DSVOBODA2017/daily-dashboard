@@ -253,7 +253,10 @@
     <div class="day-card">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px">
         <div class="day-name" id="dayName">—</div>
-        <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="syncStatus" style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace"></span>
+          <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+        </div>
       </div>
       <div class="day-date" id="dateStr">—</div>
       <div class="rating-row">
@@ -458,8 +461,58 @@ document.getElementById('dayName').textContent=DAYS[now.getDay()].toUpperCase();
 document.getElementById('dateStr').textContent=`${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
 
 const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme'};
+const GS_URL='https://script.google.com/macros/s/AKfycbxAjW1BJFW-1GgmC1vx5H_RGa7ltPcaPLNWJY4YvQSwRf1jQxx2aCCRFwqMwr77Jibt1Q/exec';
+let _syncPending={};
+let _syncTimer=null;
+
+// Always read/write localStorage immediately for snappy UI
 function load(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
-function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+function save(k,v){
+  try{localStorage.setItem(k,JSON.stringify(v));}catch{}
+  // Debounce cloud sync — batch writes every 2s
+  _syncPending[k]=JSON.stringify(v);
+  if(_syncTimer)clearTimeout(_syncTimer);
+  _syncTimer=setTimeout(flushToCloud,2000);
+}
+
+function flushToCloud(){
+  const keys=Object.keys(_syncPending);
+  if(!keys.length)return;
+  const batch={..._syncPending};
+  _syncPending={};
+  keys.forEach(k=>{
+    const url=GS_URL+'?action=set&key='+encodeURIComponent(k)+'&value='+encodeURIComponent(batch[k]);
+    fetch(url).catch(()=>{});
+  });
+}
+
+function loadFromCloud(){
+  showSyncStatus('Syncing...');
+  fetch(GS_URL+'?action=getAll')
+    .then(r=>r.json())
+    .then(res=>{
+      if(res.success&&res.data){
+        Object.keys(res.data).forEach(k=>{
+          if(res.data[k]!=null&&res.data[k]!==''){
+            try{localStorage.setItem(k,res.data[k]);}catch{}
+          }
+        });
+      }
+      showSyncStatus('Synced ✓');
+      setTimeout(()=>showSyncStatus(''),2500);
+      initApp();
+    })
+    .catch(()=>{
+      showSyncStatus('Offline — local data');
+      setTimeout(()=>showSyncStatus(''),3000);
+      initApp();
+    });
+}
+
+function showSyncStatus(msg){
+  let el=document.getElementById('syncStatus');
+  if(el)el.textContent=msg;
+}
 
 let tasks=load(SK.tasks,{
   work:[{id:1,text:'Review project brief',star:true},{id:2,text:'Team standup',star:true},{id:3,text:'Send weekly report',star:false}],
@@ -703,9 +756,7 @@ function updateProg(){
   settings.wEnd=document.getElementById('wEnd').value;
   save(SK.settings,settings);
 }
-document.getElementById('wStart').value=settings.wStart||'09:00';
-document.getElementById('wEnd').value=settings.wEnd||'17:00';
-setInterval(updateProg,60000);updateProg();
+setInterval(updateProg,60000);
 
 let audioCtx=null;
 function getAudioCtx(){
@@ -965,8 +1016,7 @@ if(settings.reflOpen){
   document.getElementById('reflWrap').style.display='block';
   document.getElementById('reflChevron').style.transform='rotate(90deg)';
 }
-document.getElementById('gratefulTx').value=refl.grateful||'';
-document.getElementById('accomplishTx').value=refl.accomplish||'';
+
 
 function logEntry(){
   const mood=+(document.querySelector('input[name=mood]:checked')?.value||0);
@@ -1035,16 +1085,49 @@ function toggleTheme(){
   save(SK.theme,isDark?'light':'dark');
   drawPie();
 }
-const savedTheme=load(SK.theme,'light');
-if(savedTheme==='dark'){document.documentElement.setAttribute('data-theme','dark');document.getElementById('themeBtn').textContent='☀️ Light';}
 
-const moodSaved=load(SK.mood,null);const daySaved=load(SK.day,null);
-if(moodSaved){const r=document.getElementById('m'+moodSaved);if(r)r.checked=true;}
-if(daySaved){const r=document.getElementById('d'+daySaved);if(r)r.checked=true;}
-document.querySelectorAll('input[name=mood]').forEach(r=>r.addEventListener('change',()=>save(SK.mood,r.value)));
-document.querySelectorAll('input[name=dayR]').forEach(r=>r.addEventListener('change',()=>save(SK.day,r.value)));
 
-render();
+function initApp(){
+  const moodSaved=load(SK.mood,null);const daySaved=load(SK.day,null);
+  if(moodSaved){const r=document.getElementById('m'+moodSaved);if(r)r.checked=true;}
+  if(daySaved){const r=document.getElementById('d'+daySaved);if(r)r.checked=true;}
+
+  tasks=load(SK.tasks,tasks);
+  habits=load(SK.habits,habits);
+  history=load(SK.history,history);
+  settings=load(SK.settings,settings);
+  refl=load(SK.refl,refl);
+  nextId=load(SK.nextid,nextId);
+
+  document.getElementById('wStart').value=settings.wStart||'09:00';
+  document.getElementById('wEnd').value=settings.wEnd||'17:00';
+
+  if(settings.priv||settings.reflOpen){
+    if(settings.reflOpen){
+      document.getElementById('reflWrap').style.display='block';
+      document.getElementById('reflChevron').style.transform='rotate(90deg)';
+    }
+  }
+  document.getElementById('gratefulTx').value=refl.grateful||'';
+  document.getElementById('accomplishTx').value=refl.accomplish||'';
+
+  const savedTheme=load(SK.theme,'light');
+  if(savedTheme==='dark'){
+    document.documentElement.setAttribute('data-theme','dark');
+    document.getElementById('themeBtn').textContent='☀️ Light';
+  }
+
+  document.querySelectorAll('input[name=mood]').forEach(r=>r.addEventListener('change',()=>save(SK.mood,r.value)));
+  document.querySelectorAll('input[name=dayR]').forEach(r=>r.addEventListener('change',()=>save(SK.day,r.value)));
+
+  updateProg();
+  render();
+  timerReset();
+  startDropAnim();
+}
+
+// Boot — pull from cloud first, then init
+loadFromCloud();
 </script>
 </body>
 </html>
