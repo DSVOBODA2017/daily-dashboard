@@ -461,7 +461,7 @@ const todayKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}
 document.getElementById('dayName').textContent=DAYS[now.getDay()].toUpperCase();
 document.getElementById('dateStr').textContent=`${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
 
-const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme'};
+const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme',lastDate:'dpd_lastDate'};
 const GS_URL='https://script.google.com/macros/s/AKfycbxAjW1BJFW-1GgmC1vx5H_RGa7ltPcaPLNWJY4YvQSwRf1jQxx2aCCRFwqMwr77Jibt1Q/exec';
 let _syncPending={};
 let _syncTimer=null;
@@ -1125,10 +1125,7 @@ function toggleTheme(){
 
 
 function initApp(){
-  const moodSaved=load(SK.mood,null);const daySaved=load(SK.day,null);
-  if(moodSaved){const r=document.getElementById('m'+moodSaved);if(r)r.checked=true;}
-  if(daySaved){const r=document.getElementById('d'+daySaved);if(r)r.checked=true;}
-
+  // Load all state first
   tasks=load(SK.tasks,{
     work:[{id:1,text:'Review project brief',star:true},{id:2,text:'Team standup',star:true},{id:3,text:'Send weekly report',star:false}],
     personal:[{id:1,text:'Grocery shopping',star:true},{id:2,text:'Call family',star:false},{id:3,text:'Read 30 min',star:false}]
@@ -1143,14 +1140,39 @@ function initApp(){
   refl=load(SK.refl,{grateful:'',accomplish:''});
   nextId=load(SK.nextid,{work:10,personal:10,habits:10});
 
+  // ── New-day reset ──────────────────────────────────────────
+  const lastDate=load(SK.lastDate,null);
+  const isNewDay=lastDate!==todayKey;
+  if(isNewDay){
+    // Reset habits to unchecked — keep streaks intact
+    habits=habits.map(h=>({...h,done:false}));
+    save(SK.habits,habits);
+    // Clear mood & day radio selection
+    save(SK.mood,null);
+    save(SK.day,null);
+    // Clear daily reflection form fields (history entry is preserved)
+    refl={grateful:'',accomplish:''};
+    save(SK.refl,refl);
+    // Record today as last active date
+    save(SK.lastDate,todayKey);
+  } else {
+    // Same day — restore last active date record
+    save(SK.lastDate,todayKey);
+  }
+  // ──────────────────────────────────────────────────────────
+
+  // Restore mood & day radio selections (null if new day)
+  const moodSaved=load(SK.mood,null);
+  const daySaved=load(SK.day,null);
+  if(moodSaved){const r=document.getElementById('m'+moodSaved);if(r)r.checked=true;}
+  if(daySaved){const r=document.getElementById('d'+daySaved);if(r)r.checked=true;}
+
   document.getElementById('wStart').value=settings.wStart||'09:00';
   document.getElementById('wEnd').value=settings.wEnd||'17:00';
 
-  if(settings.priv||settings.reflOpen){
-    if(settings.reflOpen){
-      document.getElementById('reflWrap').style.display='block';
-      document.getElementById('reflChevron').style.transform='rotate(90deg)';
-    }
+  if(settings.reflOpen){
+    document.getElementById('reflWrap').style.display='block';
+    document.getElementById('reflChevron').style.transform='rotate(90deg)';
   }
   document.getElementById('gratefulTx').value=refl.grateful||'';
   document.getElementById('accomplishTx').value=refl.accomplish||'';
