@@ -51,7 +51,7 @@
   .app { max-width: 1380px; margin: 0 auto; padding: 20px 16px; width: 100%; }
 
   /* TOP BAR */
-  .topbar { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; margin-bottom: 14px; align-items: stretch; min-width: 0; }
+  .topbar { display: grid; grid-template-columns: auto auto; gap: 12px; margin-bottom: 14px; align-items: stretch; min-width: 0; }
   .day-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px 18px; }
   .day-name { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
   .day-date { font-size: 12px; color: var(--text2); margin-bottom: 12px; }
@@ -300,27 +300,7 @@
       </div>
     </div>
 
-    <div class="progress-card">
-      <div>
-        <div class="progress-header">
-          <span class="panel-title">DAILY PROGRESS</span>
-          <div class="prog-controls">
-            <span style="font-size:11px;color:var(--text2)">Start</span>
-            <input type="time" id="wStart" value="09:00" style="width:82px;font-size:11px;padding:3px 6px" onchange="updateProg()">
-            <span style="font-size:11px;color:var(--text2)">End</span>
-            <input type="time" id="wEnd" value="17:00" style="width:82px;font-size:11px;padding:3px 6px" onchange="updateProg()">
-
-          </div>
-        </div>
-        <div class="prog-bar-track"><div class="prog-bar-fill" id="pFill" style="width:0%;background:#16a34a"></div></div>
-        <div class="prog-meta">
-          <span style="font-size:11px;color:var(--text3)" id="pPct">0%</span>
-          <span style="font-size:11px;color:var(--text3)" id="pLeft">—</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- FOCUS TIMER (3rd column) -->
+    <!-- FOCUS TIMER (2nd column) -->
     <div class="panel" style="text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:180px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <span class="panel-title">FOCUS TIMER</span>
@@ -370,6 +350,21 @@
               <span class="panel-title">WORK DAY</span>
               <div class="row"><span class="pill" id="cWork">0 tasks</span><button class="btn btn-xs btn-blue" onclick="openAdd('work')">+ Add</button></div>
             </div>
+            <div style="margin-bottom:10px">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:4px">
+                <span style="font-size:10px;font-weight:600;letter-spacing:0.4px;color:var(--text3);text-transform:uppercase">Work Progress</span>
+                <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+                  <input type="time" id="wStart" value="09:00" style="width:76px;font-size:11px;padding:2px 5px" onchange="updateProg()">
+                  <span style="font-size:10px;color:var(--text3)">to</span>
+                  <input type="time" id="wEnd" value="17:00" style="width:76px;font-size:11px;padding:2px 5px" onchange="updateProg()">
+                </div>
+              </div>
+              <div class="prog-bar-track"><div class="prog-bar-fill" id="pFill" style="width:0%;background:#16a34a"></div></div>
+              <div style="display:flex;justify-content:space-between;margin-top:2px">
+                <span style="font-size:10px;color:var(--text3)" id="pPct">0%</span>
+                <span style="font-size:10px;color:var(--text3)" id="pLeft">—</span>
+              </div>
+            </div>
             <div id="workList" class="task-list-container"></div>
           </div>
           <!-- Personal -->
@@ -377,6 +372,21 @@
             <div class="panel-header">
               <span class="panel-title">PERSONAL</span>
               <div class="row"><span class="pill" id="cPersonal">0 tasks</span><button class="btn btn-xs btn-blue" onclick="openAdd('personal')">+ Add</button></div>
+            </div>
+            <div style="margin-bottom:10px">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:4px">
+                <span style="font-size:10px;font-weight:600;letter-spacing:0.4px;color:var(--text3);text-transform:uppercase">Personal Progress</span>
+                <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+                  <input type="time" id="pStart" value="05:00" style="width:76px;font-size:11px;padding:2px 5px" onchange="updatePersonalProg()">
+                  <span style="font-size:10px;color:var(--text3)">to</span>
+                  <input type="time" id="pEnd" value="22:00" style="width:76px;font-size:11px;padding:2px 5px" onchange="updatePersonalProg()">
+                </div>
+              </div>
+              <div class="prog-bar-track"><div class="prog-bar-fill" id="ppFill" style="width:0%;background:#534AB7"></div></div>
+              <div style="display:flex;justify-content:space-between;margin-top:2px">
+                <span style="font-size:10px;color:var(--text3)" id="ppPct">0%</span>
+                <span style="font-size:10px;color:var(--text3)" id="ppLeft">—</span>
+              </div>
             </div>
             <div id="personalList" class="task-list-container"></div>
           </div>
@@ -561,7 +571,7 @@ function showSyncStatus(msg){
 let tasks={work:[],personal:[]};
 let habits=[];
 let history=[];
-let settings={wStart:'09:00',wEnd:'17:00',priv:false,reflOpen:false};
+let settings={wStart:'09:00',wEnd:'17:00',pStart:'05:00',pEnd:'22:00',priv:false,reflOpen:false};
 let refl={grateful:'',accomplish:''};
 let nextId={work:10,personal:10,habits:10};
 let vis={work:true,personal:true,habits:true};
@@ -777,23 +787,47 @@ function addDrag(el,list){
   },{passive:true});
 }
 
+function progColor(pct){return pct>0.9?'#dc2626':pct>0.75?'#d97706':pct>0.5?'#ca8a04':'#16a34a';}
+
 function updateProg(){
   const n=new Date();
-  const [sh,sm]=document.getElementById('wStart').value.split(':').map(Number);
-  const [eh,em]=document.getElementById('wEnd').value.split(':').map(Number);
+  const wS=document.getElementById('wStart');
+  const wE=document.getElementById('wEnd');
+  if(!wS||!wE)return;
+  const [sh,sm]=wS.value.split(':').map(Number);
+  const [eh,em]=wE.value.split(':').map(Number);
   const sM=sh*60+sm,eM=eh*60+em,nM=n.getHours()*60+n.getMinutes();
   const pct=Math.max(0,Math.min(1,(nM-sM)/(eM-sM)));
   document.getElementById('pFill').style.width=Math.round(pct*100)+'%';
-  document.getElementById('pPct').textContent=Math.round(pct*100)+'% of workday elapsed';
+  document.getElementById('pPct').textContent=Math.round(pct*100)+'%';
   const ml=eM-nM;
-  document.getElementById('pLeft').textContent=ml>0?`${Math.floor(ml/60)}h ${ml%60}m remaining`:'Workday complete';
-  const c=pct>0.9?'#dc2626':pct>0.75?'#d97706':pct>0.5?'#ca8a04':'#16a34a';
-  document.getElementById('pFill').style.backgroundColor=c;
-  settings.wStart=document.getElementById('wStart').value;
-  settings.wEnd=document.getElementById('wEnd').value;
+  document.getElementById('pLeft').textContent=ml>0?`${Math.floor(ml/60)}h ${ml%60}m left`:'Complete';
+  document.getElementById('pFill').style.backgroundColor=progColor(pct);
+  settings.wStart=wS.value;
+  settings.wEnd=wE.value;
   save(SK.settings,settings);
 }
-setInterval(updateProg,60000);
+
+function updatePersonalProg(){
+  const n=new Date();
+  const pS=document.getElementById('pStart');
+  const pE=document.getElementById('pEnd');
+  if(!pS||!pE)return;
+  const [sh,sm]=pS.value.split(':').map(Number);
+  const [eh,em]=pE.value.split(':').map(Number);
+  const sM=sh*60+sm,eM=eh*60+em,nM=n.getHours()*60+n.getMinutes();
+  const pct=Math.max(0,Math.min(1,(nM-sM)/(eM-sM)));
+  document.getElementById('ppFill').style.width=Math.round(pct*100)+'%';
+  document.getElementById('ppPct').textContent=Math.round(pct*100)+'%';
+  const ml=eM-nM;
+  document.getElementById('ppLeft').textContent=ml>0?`${Math.floor(ml/60)}h ${ml%60}m left`:'Complete';
+  document.getElementById('ppFill').style.backgroundColor=progColor(pct);
+  settings.pStart=pS.value;
+  settings.pEnd=pE.value;
+  save(SK.settings,settings);
+}
+
+setInterval(()=>{updateProg();updatePersonalProg();},60000);
 
 let audioCtx=null;
 function getAudioCtx(){
@@ -1136,7 +1170,7 @@ function initApp(){
     {id:3,text:'Journal entry',done:false,streak:1,lastDone:''}
   ]);
   history=load(SK.history,[]);
-  settings=load(SK.settings,{wStart:'09:00',wEnd:'17:00',priv:false,reflOpen:false});
+  settings=load(SK.settings,{wStart:'09:00',wEnd:'17:00',pStart:'05:00',pEnd:'22:00',priv:false,reflOpen:false});
   refl=load(SK.refl,{grateful:'',accomplish:''});
   nextId=load(SK.nextid,{work:10,personal:10,habits:10});
 
@@ -1169,6 +1203,8 @@ function initApp(){
 
   document.getElementById('wStart').value=settings.wStart||'09:00';
   document.getElementById('wEnd').value=settings.wEnd||'17:00';
+  document.getElementById('pStart').value=settings.pStart||'05:00';
+  document.getElementById('pEnd').value=settings.pEnd||'22:00';
 
   if(settings.reflOpen){
     document.getElementById('reflWrap').style.display='block';
@@ -1187,6 +1223,7 @@ function initApp(){
   document.querySelectorAll('input[name=dayR]').forEach(r=>r.addEventListener('change',()=>save(SK.day,r.value)));
 
   updateProg();
+  updatePersonalProg();
   render();
   timerReset();
   startDropAnim();
