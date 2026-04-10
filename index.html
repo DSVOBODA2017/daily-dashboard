@@ -73,6 +73,15 @@
   .toggle-strip { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
   .chip { padding: 4px 13px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: var(--surface2); color: var(--text2); transition: all 0.15s; user-select: none; font-family: 'DM Sans', sans-serif; }
   .chip.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .chip-primary { padding: 4px 13px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--blue); background: var(--blue); color: #fff; transition: all 0.15s; user-select: none; font-family: 'DM Sans', sans-serif; }
+  .chip-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+  .chip-primary:active { transform: scale(0.97); }
+  .chip-secondary { padding: 4px 13px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: transparent; color: var(--text2); transition: all 0.15s; user-select: none; font-family: 'DM Sans', sans-serif; }
+  .chip-secondary:hover { border-color: var(--text2); color: var(--text); }
+  .chip-secondary:active { transform: scale(0.97); }
+  .chip-success { padding: 4px 13px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--green); background: var(--green); color: #fff; transition: all 0.15s; user-select: none; font-family: 'DM Sans', sans-serif; }
+  .chip-success:hover { background: #15803d; border-color: #15803d; }
+  .chip-success:active { transform: scale(0.97); }
 
   /* MAIN GRID */
   .main-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
@@ -183,7 +192,8 @@
   .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
 
   /* THEME TOGGLE */
-  .theme-btn { background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 20px; padding: 5px 12px; font-size: 11px; cursor: pointer; color: var(--text2); font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+  .theme-btn { background: transparent; border: 0.5px solid var(--border2); border-radius: 20px; padding: 4px 13px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text2); font-family: 'DM Sans', sans-serif; white-space: nowrap; transition: all 0.15s; }
+  .theme-btn:hover { border-color: var(--text2); color: var(--text); }
 
   .section-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; }
   .row { display: flex; align-items: center; gap: 7px; }
@@ -202,7 +212,7 @@
     .task-actions { opacity: 1; }
     .habit-actions { opacity: 1; }
     .toggle-strip { gap: 6px; }
-    .chip { padding: 6px 14px; font-size: 13px; }
+    .chip, .chip-primary, .chip-secondary, .chip-success { padding: 6px 14px; font-size: 13px; }
     .rating-row { gap: 16px; }
     .radio-strip label { font-size: 20px; padding: 4px 5px; }
   }
@@ -223,7 +233,7 @@
     .tab-bar { flex-wrap: wrap; }
     .rating-row { flex-direction: column; gap: 10px; }
     .toggle-strip { gap: 5px; }
-    .chip { font-size: 12px; padding: 5px 12px; }
+    .chip, .chip-primary, .chip-secondary, .chip-success { font-size: 12px; padding: 5px 12px; }
     .theme-btn { padding: 4px 10px; font-size: 11px; }
     .modal { padding: 16px; }
     .history-date { min-width: 58px; font-size: 10px; }
@@ -255,7 +265,7 @@
         <div class="day-name" id="dayName">—</div>
         <div style="display:flex;align-items:center;gap:8px">
           <span id="syncStatus" style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace"></span>
-          <button onclick="syncNow()" style="background:none;border:0.5px solid var(--border2);border-radius:12px;padding:2px 8px;font-size:10px;cursor:pointer;color:var(--text2);font-family:'DM Sans',sans-serif" title="Force sync to cloud">⟳ Sync</button>
+          <button onclick="syncNow()" class="chip-secondary" style="font-size:11px;padding:3px 10px" title="Force sync to cloud">⟳ Sync</button>
           <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
         </div>
       </div>
@@ -295,7 +305,7 @@
             <div class="section-lbl">Greatest accomplishment today</div>
             <textarea id="accomplishTx" placeholder="Write here..." oninput="saveRefl()" style="font-size:12px;min-height:48px"></textarea>
           </div>
-          <button class="btn btn-blue" style="width:100%;justify-content:center;font-size:12px" onclick="logEntry()" id="saveEntryBtn">Save today's entry</button>
+          <button class="chip-primary" style="width:100%;justify-content:center;display:flex" onclick="logEntry()" id="saveEntryBtn">Save today's entry</button>
         </div>
       </div>
     </div>
@@ -306,8 +316,10 @@
         <span class="panel-title">FOCUS TIMER</span>
         <input type="text" id="timerInput" value="00:25:00"
           maxlength="8"
-          style="width:100px;font-size:13px;font-family:'DM Mono',monospace;text-align:center;letter-spacing:1px;padding:3px 6px"
+          inputmode="numeric"
+          style="width:110px;font-size:13px;font-family:'DM Mono',monospace;text-align:center;letter-spacing:1px;padding:3px 6px;cursor:text"
           placeholder="hh:mm:ss"
+          onfocus="this.select()"
           onchange="timerInputChanged()"
           onblur="timerInputChanged()">
       </div>
@@ -316,8 +328,8 @@
         <canvas id="hgCanvas" width="64" height="88" style="flex-shrink:0;image-rendering:pixelated"></canvas>
       </div>
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px">
-        <button class="btn btn-sm" onclick="timerReset()">Reset</button>
-        <button class="btn btn-sm btn-green" id="timerBtn" onclick="timerToggle()">Start</button>
+        <button class="chip-secondary" onclick="timerReset()">Reset</button>
+        <button class="chip-success" id="timerBtn" onclick="timerToggle()">Start</button>
       </div>
     </div>
   </div>
@@ -348,7 +360,7 @@
           <div id="colWork" class="panel">
             <div class="panel-header">
               <span class="panel-title">WORK DAY</span>
-              <div class="row"><span class="pill" id="cWork">0 tasks</span><button class="btn btn-xs btn-blue" onclick="openAdd('work')">+ Add</button></div>
+              <div class="row"><span class="pill" id="cWork">0 tasks</span><button class="chip-primary" onclick="openAdd('work')">+ Add</button></div>
             </div>
             <div style="margin-bottom:10px">
               <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:4px">
@@ -371,7 +383,7 @@
           <div id="colPersonal" class="panel">
             <div class="panel-header">
               <span class="panel-title">PERSONAL</span>
-              <div class="row"><span class="pill" id="cPersonal">0 tasks</span><button class="btn btn-xs btn-blue" onclick="openAdd('personal')">+ Add</button></div>
+              <div class="row"><span class="pill" id="cPersonal">0 tasks</span><button class="chip-primary" onclick="openAdd('personal')">+ Add</button></div>
             </div>
             <div style="margin-bottom:10px">
               <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:4px">
@@ -394,7 +406,11 @@
           <div id="colHabits" class="panel">
             <div class="panel-header">
               <span class="panel-title">DAILY HABITS</span>
-              <button class="btn btn-xs btn-blue" onclick="openAdd('habits')">+ Add</button>
+              <div class="row">
+                <span class="pill" id="habitCount">0 done</span>
+                <button class="chip on" id="habitToggleBtn" onclick="toggleCompletedHabits()" title="Toggle completed habits">Outstanding</button>
+                <button class="chip-primary" onclick="openAdd('habits')">+ Add</button>
+              </div>
             </div>
             <div id="habitList" class="task-list-container"></div>
           </div>
@@ -440,8 +456,8 @@
     <div class="modal-title" id="addModalTitle">Add task</div>
     <input type="text" id="addInput" placeholder="Enter..." style="width:100%;margin-bottom:12px" onkeydown="if(event.key==='Enter')confirmAdd()">
     <div class="row" style="justify-content:flex-end;gap:7px">
-      <button class="btn" onclick="closeModal('add')">Cancel</button>
-      <button class="btn btn-blue" onclick="confirmAdd()">Add</button>
+      <button class="chip-secondary" onclick="closeModal('add')">Cancel</button>
+      <button class="chip-primary" onclick="confirmAdd()">Add</button>
     </div>
   </div>
 </div>
@@ -457,8 +473,8 @@
       <input type="number" id="editStreakInput" min="0" style="width:100%" onkeydown="if(event.key==='Enter')confirmEdit()">
     </div>
     <div class="row" style="justify-content:flex-end;gap:7px">
-      <button class="btn" onclick="closeModal('edit')">Cancel</button>
-      <button class="btn btn-blue" onclick="confirmEdit()">Save</button>
+      <button class="chip-secondary" onclick="closeModal('edit')">Cancel</button>
+      <button class="chip-primary" onclick="confirmEdit()">Save</button>
     </div>
   </div>
 </div>
@@ -575,6 +591,7 @@ let settings={wStart:'09:00',wEnd:'17:00',pStart:'05:00',pEnd:'22:00',priv:false
 let refl={grateful:'',accomplish:''};
 let nextId={work:10,personal:10,habits:10};
 let vis={work:true,personal:true,habits:true};
+let showCompletedHabits=false;
 let addTarget='',editTarget={list:'',id:0};
 let timerTotal=25*60,timerLeft=25*60,timerRunning=false,timerIv=null;
 let moodChart=null,dayChart=null;
@@ -604,18 +621,42 @@ function renderTasks(list,cid,countId){
   document.getElementById(countId).textContent=`${tasks[list].length} tasks · ${top3.length} ★`;
 }
 
+function toggleCompletedHabits(){
+  showCompletedHabits=!showCompletedHabits;
+  const btn=document.getElementById('habitToggleBtn');
+  btn.textContent=showCompletedHabits?'Completed':'Outstanding';
+  btn.className=showCompletedHabits?'chip on':'chip';
+  renderHabits();
+}
+
 function renderHabits(){
   const el=document.getElementById('habitList');el.innerHTML='';
-  habits.forEach(h=>{
+  const doneCount=habits.filter(h=>h.done).length;
+  const countEl=document.getElementById('habitCount');
+  if(countEl) countEl.textContent=`${doneCount}/${habits.length} done`;
+
+  // Filter based on toggle state
+  const visible=habits.filter(h=>showCompletedHabits?h.done:!h.done);
+
+  visible.forEach(h=>{
     const d=document.createElement('div');
     d.className='habit-item'+(h.done?' done':'');
-    d.innerHTML=`<input type="checkbox" class="habit-done-cb" ${h.done?'checked':''} onchange="toggleHabit(${h.id})"><span style="flex:1;font-size:12px;color:var(--text)">${esc(h.text)}</span><span class="streak-badge">🔥${h.streak}d</span><div class="habit-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('habits',${h.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit(${h.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>`;
+    d.innerHTML=`<input type="checkbox" class="habit-done-cb" ${h.done?'checked':''} onchange="toggleHabit(${h.id})"><span style="flex:1;font-size:12px;color:var(--text);${h.done?'text-decoration:line-through;opacity:0.6':''}">${esc(h.text)}</span><span class="streak-badge">🔥${h.streak}d</span><div class="habit-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('habits',${h.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit(${h.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>`;
     el.appendChild(d);
   });
+
+  // Zero states
   if(habits.length===0){
-    const z=document.createElement('div');
-    z.className='zero-state';
+    const z=document.createElement('div');z.className='zero-state';
     z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>No habits yet — add one above`;
+    el.appendChild(z);
+  } else if(visible.length===0&&!showCompletedHabits){
+    const z=document.createElement('div');z.className='zero-state';
+    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/></svg>All habits done for today!`;
+    el.appendChild(z);
+  } else if(visible.length===0&&showCompletedHabits){
+    const z=document.createElement('div');z.className='zero-state';
+    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>No completed habits yet`;
     el.appendChild(z);
   }
 }
@@ -861,7 +902,7 @@ function _startChimeLoop(ctx){
   chimeLooping=true;
   const btn=document.getElementById('timerBtn');
   btn.textContent='Stop chime';
-  btn.className='btn btn-red';
+  btn.className='chip-primary';btn.style.background='#dc2626';btn.style.borderColor='#dc2626';
   btn.onclick=stopChime;
   _doChime(ctx);
 }
@@ -936,7 +977,7 @@ function timerReset(){
   if(chimeLooping) stopChime();
   const btn=document.getElementById('timerBtn');
   btn.onclick=timerToggle;
-  btn.className='btn btn-green';
+  btn.className='chip-success';
   btn.textContent='Start';
   timerTotal=parseTimerInput()||60;
   timerLeft=timerTotal;
