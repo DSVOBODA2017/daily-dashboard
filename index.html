@@ -96,6 +96,20 @@
 
   /* CARDS */
   .panel { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px; }
+  .inline-form { margin-top:6px; padding:10px 10px 8px; background:var(--surface); border-radius:var(--radius-sm); border:1.5px solid var(--blue); display:flex; flex-direction:column; gap:7px; }
+  .inline-form input[type=text], .inline-form textarea, .inline-form input[type=date], .inline-form input[type=time] { background:var(--surface2); border:0.5px solid var(--border2); border-radius:var(--radius-sm); padding:5px 8px; font-size:13px; color:var(--text); font-family:'DM Sans',sans-serif; outline:none; width:100%; }
+  .inline-form input[type=text]:focus, .inline-form textarea:focus { border-color:var(--blue); }
+  .inline-form textarea { resize:none; min-height:52px; }
+  .inline-form-row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .inline-form-lbl { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--text3); }
+  .inline-form-actions { display:flex; gap:6px; justify-content:flex-end; margin-top:2px; }
+  .task-item.editing { border:1.5px solid var(--blue); background:var(--surface); flex-direction:column; align-items:stretch; cursor:default; }
+  .task-item.editing .task-text { display:none; }
+  .task-meta { display:flex; gap:6px; flex-wrap:wrap; margin-top:3px; }
+  .task-desc { font-size:11px; color:var(--text2); line-height:1.4; margin-top:2px; }
+  .due-badge { font-size:10px; padding:2px 7px; border-radius:8px; border:0.5px solid var(--border2); color:var(--text2); background:var(--surface2); white-space:nowrap; }
+  .due-badge.overdue { background:var(--red-bg); color:var(--red); border-color:var(--red); }
+  .due-badge.soon { background:var(--amber-bg); color:var(--amber); border-color:var(--amber); }
   .lists-grid > .panel { display:flex; flex-direction:column; height:100%; }
   .task-list-container { display:flex; flex-direction:column; flex:1; }
   .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
@@ -183,7 +197,7 @@
   .tab.active { background: var(--text); color: var(--bg); }
 
   /* HISTORY */
-  .history-list { max-height: 220px; overflow-y: auto; }
+  .history-list { max-height: 360px; overflow-y: auto; }
   .history-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; }
   .history-date { color: var(--text3); font-family: 'DM Mono', monospace; font-size: 11px; min-width: 72px; }
   .history-quote { flex: 1; color: var(--text2); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -315,17 +329,21 @@
 
     <!-- FOCUS TIMER (2nd column) -->
     <div class="panel" style="text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:180px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <span class="panel-title">FOCUS TIMER</span>
-        <input type="text" id="timerInput" value="00:25:00"
-          maxlength="8"
-          inputmode="numeric"
-          style="width:110px;font-size:13px;font-family:'DM Mono',monospace;text-align:center;letter-spacing:1px;padding:3px 6px;cursor:text"
-          placeholder="hh:mm:ss"
-          onfocus="this.select()"
-          onchange="timerInputChanged()"
-          onblur="timerInputChanged()">
+        <div style="display:flex;align-items:center;gap:5px">
+          <input type="text" id="timerInput" value="00:25:00"
+            maxlength="8"
+            inputmode="numeric"
+            style="width:100px;font-size:13px;font-family:'DM Mono',monospace;text-align:center;letter-spacing:1px;padding:3px 6px;cursor:text"
+            placeholder="hh:mm:ss"
+            onfocus="this.select()"
+            onchange="timerInputChanged()"
+            onblur="timerInputChanged()">
+          <button class="chip-secondary" style="font-size:11px;padding:3px 9px;white-space:nowrap" onclick="openSetPreset()" title="Save current time as a preset">Set preset</button>
+        </div>
       </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="presetBtns"></div>
       <div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap">
         <div class="timer-display" id="timerDisp">25:00</div>
         <canvas id="hgCanvas" width="64" height="88" style="flex-shrink:0;image-rendering:pixelated"></canvas>
@@ -333,6 +351,15 @@
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px">
         <button class="chip-secondary" onclick="timerReset()">Reset</button>
         <button class="chip-success" id="timerBtn" onclick="timerToggle()">Start</button>
+      </div>
+    </div>
+
+    <!-- Set Preset picker backdrop + modal -->
+    <div id="presetPickerBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:400;align-items:center;justify-content:center" onclick="closePresetPicker()">
+      <div id="presetPicker" style="background:var(--surface);border:0.5px solid var(--border2);border-radius:var(--radius);padding:16px;width:min(260px,calc(100vw - 32px));box-shadow:0 4px 24px rgba(0,0,0,0.18)" onclick="event.stopPropagation()">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.4px">Replace which preset?</div>
+        <div id="presetPickerBtns" style="display:flex;flex-direction:column;gap:7px"></div>
+        <button class="chip-secondary" style="width:100%;margin-top:10px;justify-content:center;display:flex;font-size:12px" onclick="closePresetPicker()">Cancel</button>
       </div>
     </div>
   </div>
@@ -453,11 +480,80 @@
   </div>
 </div>
 
+<!-- EDIT ENTRY MODAL -->
+<div id="editEntryModal" class="modal-backdrop" onclick="if(event.target===this)closeEditEntry()">
+  <div class="modal" style="max-width:460px;width:min(460px,calc(100vw - 32px))">
+    <div class="modal-title">Edit entry</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <div class="section-lbl" style="margin-bottom:4px">Date</div>
+        <input type="date" id="eeDate" style="width:100%">
+      </div>
+      <div>
+        <div class="section-lbl" style="margin-bottom:4px">Time</div>
+        <input type="time" id="eeTime" style="width:100%">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <div class="section-lbl" style="margin-bottom:6px">Mood</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap" id="eeMoodRow">
+          <label style="display:flex;align-items:center;gap:2px;font-size:13px;cursor:pointer"><input type="radio" name="eeMood" value="1"> 😞</label>
+          <label style="display:flex;align-items:center;gap:2px;font-size:13px;cursor:pointer"><input type="radio" name="eeMood" value="2"> 😕</label>
+          <label style="display:flex;align-items:center;gap:2px;font-size:13px;cursor:pointer"><input type="radio" name="eeMood" value="3"> 😐</label>
+          <label style="display:flex;align-items:center;gap:2px;font-size:13px;cursor:pointer"><input type="radio" name="eeMood" value="4"> 🙂</label>
+          <label style="display:flex;align-items:center;gap:2px;font-size:13px;cursor:pointer"><input type="radio" name="eeMood" value="5"> 😄</label>
+        </div>
+      </div>
+      <div>
+        <div class="section-lbl" style="margin-bottom:6px">Day</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap" id="eeDayRow">
+          <label style="display:flex;align-items:center;gap:2px;font-size:13px;cursor:pointer"><input type="radio" name="eeDay" value="1"> 💩</label>
+          <label style="display:flex;align-items:center;gap:2px;font-size:13px;cursor:pointer"><input type="radio" name="eeDay" value="2"> 😓</label>
+          <label style="display:flex;align-items:center;gap:2px;font-size:13px;cursor:pointer"><input type="radio" name="eeDay" value="3"> 😊</label>
+          <label style="display:flex;align-items:center;gap:2px;font-size:13px;cursor:pointer"><input type="radio" name="eeDay" value="4"> 🔥</label>
+          <label style="display:flex;align-items:center;gap:2px;font-size:13px;cursor:pointer"><input type="radio" name="eeDay" value="5"> 🏆</label>
+        </div>
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <div class="section-lbl" style="margin-bottom:4px">I am grateful for...</div>
+      <textarea id="eeGrateful" style="width:100%;min-height:52px;resize:vertical" placeholder="Write here..."></textarea>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="section-lbl" style="margin-bottom:4px">Greatest accomplishment</div>
+      <textarea id="eeAccomplish" style="width:100%;min-height:52px;resize:vertical" placeholder="Write here..."></textarea>
+    </div>
+    <div class="row" style="justify-content:space-between;gap:7px">
+      <button class="chip-secondary" style="color:var(--red);border-color:var(--red)" onclick="deleteEntry()">Delete entry</button>
+      <div class="row" style="gap:7px">
+        <button class="chip-secondary" onclick="closeEditEntry()">Cancel</button>
+        <button class="chip-primary" onclick="saveEditEntry()">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ADD MODAL -->
 <div id="addModal" class="modal-backdrop" onclick="if(event.target===this)closeModal('add')">
   <div class="modal">
     <div class="modal-title" id="addModalTitle">Add task</div>
+    <div class="section-lbl" style="margin-bottom:4px">Name</div>
     <input type="text" id="addInput" placeholder="Enter..." style="width:100%;margin-bottom:12px" onkeydown="if(event.key==='Enter')confirmAdd()">
+    <div id="addDaysRow" style="display:none;margin-bottom:12px">
+      <div style="margin-bottom:12px">
+        <div class="section-lbl" style="margin-bottom:6px">Repeat on</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap" id="addDaysChecks">
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="0" style="accent-color:var(--blue);cursor:pointer"> Sun</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="1" style="accent-color:var(--blue);cursor:pointer"> Mon</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="2" style="accent-color:var(--blue);cursor:pointer"> Tue</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="3" style="accent-color:var(--blue);cursor:pointer"> Wed</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="4" style="accent-color:var(--blue);cursor:pointer"> Thu</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="5" style="accent-color:var(--blue);cursor:pointer"> Fri</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="6" style="accent-color:var(--blue);cursor:pointer"> Sat</label>
+        </div>
+      </div>
+    </div>
     <div class="row" style="justify-content:flex-end;gap:7px">
       <button class="chip-secondary" onclick="closeModal('add')">Cancel</button>
       <button class="chip-primary" onclick="confirmAdd()">Add</button>
@@ -473,7 +569,19 @@
     <input type="text" id="editInput" style="width:100%;margin-bottom:12px" onkeydown="if(event.key==='Enter')confirmEdit()">
     <div id="editStreakRow" style="display:none;margin-bottom:12px">
       <div class="section-lbl" style="margin-bottom:4px">Current streak (days)</div>
-      <input type="number" id="editStreakInput" min="0" style="width:100%" onkeydown="if(event.key==='Enter')confirmEdit()">
+      <input type="number" id="editStreakInput" min="0" style="width:100%;margin-bottom:12px" onkeydown="if(event.key==='Enter')confirmEdit()">
+      <div style="margin-bottom:12px">
+        <div class="section-lbl" style="margin-bottom:6px">Repeat on</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap" id="editDaysChecks">
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="0" style="accent-color:var(--blue);cursor:pointer"> Sun</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="1" style="accent-color:var(--blue);cursor:pointer"> Mon</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="2" style="accent-color:var(--blue);cursor:pointer"> Tue</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="3" style="accent-color:var(--blue);cursor:pointer"> Wed</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="4" style="accent-color:var(--blue);cursor:pointer"> Thu</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="5" style="accent-color:var(--blue);cursor:pointer"> Fri</label>
+          <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="6" style="accent-color:var(--blue);cursor:pointer"> Sat</label>
+        </div>
+      </div>
     </div>
     <div class="row" style="justify-content:flex-end;gap:7px">
       <button class="chip-secondary" onclick="closeModal('edit')">Cancel</button>
@@ -490,7 +598,7 @@ const todayKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}
 document.getElementById('dayName').textContent=DAYS[now.getDay()].toUpperCase();
 document.getElementById('dateStr').textContent=`${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
 
-const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme',lastDate:'dpd_lastDate'};
+const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme',lastDate:'dpd_lastDate',presets:'dpd_presets'};
 const GS_URL='https://script.google.com/macros/s/AKfycbxAjW1BJFW-1GgmC1vx5H_RGa7ltPcaPLNWJY4YvQSwRf1jQxx2aCCRFwqMwr77Jibt1Q/exec';
 let _syncPending={};
 let _syncTimer=null;
@@ -609,16 +717,74 @@ function renderTasks(list,cid,countId){
   const sorted=[...tasks[list]].sort((a,b)=>(b.star?1:0)-(a.star?1:0));
   sorted.forEach((t,i)=>{
     const isP=top3.includes(t.id);
+    const isEditing=editTarget.list===list&&editTarget.id===t.id;
     const d=document.createElement('div');
-    d.className='task-item'+(isP?' priority':'');
-    d.draggable=true;d.dataset.i=i;d.dataset.list=list;
-    d.innerHTML=`<button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="completeTask('${list}',${t.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0">Done</button><span class="task-text">${esc(t.text)}</span><button class="star-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleStar('${list}',${t.id})" title="Mark as top priority">${isP?'<svg width="14" height="14" viewBox="0 0 24 24" fill="#d97706" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'}</button><div class="task-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('${list}',${t.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delTask('${list}',${t.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>`;
-    addDrag(d,list);el.appendChild(d);
+    d.className='task-item'+(isP?' priority':'')+(isEditing?' editing':'');
+    d.draggable=!isEditing;d.dataset.i=i;d.dataset.list=list;
+    if(isEditing){
+      d.innerHTML=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.4px">Editing task</span></div>
+        <div class="inline-form-lbl">Task name</div>
+        <input type="text" id="inlineEditTitle" value="${esc(t.text)}" style="font-size:14px;font-weight:500" onkeydown="if(event.key==='Escape')cancelInlineEdit()">
+        <div class="inline-form-lbl">Description <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <textarea id="inlineEditDesc" rows="2" placeholder="Add more details...">${esc(t.desc||'')}</textarea>
+        <div class="inline-form-lbl">Due date <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <div class="inline-form-row">
+          <input type="date" id="inlineEditDate" value="${t.dueDate||''}" style="flex:1">
+          <input type="time" id="inlineEditTime" value="${t.dueTime||''}" style="width:110px">
+        </div>
+        <div class="inline-form-actions">
+          <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="cancelInlineEdit()" style="font-size:11px">Cancel</button>
+          <button class="chip-primary" onmousedown="event.preventDefault()" onclick="confirmInlineEdit('${list}',${t.id})" style="font-size:11px">Save</button>
+        </div>`;
+      setTimeout(()=>{const inp=document.getElementById('inlineEditTitle');if(inp){inp.focus();inp.select();}},30);
+    } else {
+      // Build due badge
+      let dueBadge='';
+      if(t.dueDate){
+        const now2=new Date();
+        const due=new Date(t.dueDate+(t.dueTime?'T'+t.dueTime:'T23:59'));
+        const diffH=(due-now2)/3600000;
+        const fmt=t.dueDate+(t.dueTime?' '+t.dueTime:'');
+        const cls=diffH<0?'overdue':diffH<24?'soon':'';
+        dueBadge=`<span class="due-badge ${cls}">📅 ${fmt}</span>`;
+      }
+      const descHtml=t.desc?`<div class="task-desc">${esc(t.desc)}</div>`:'';
+      d.style.flexDirection='column';d.style.alignItems='stretch';d.style.cursor='default';
+      d.innerHTML=`<div style="display:flex;align-items:center;gap:6px">
+        <button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="completeTask('${list}',${t.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0">Done</button>
+        <span class="task-text" style="cursor:default">${esc(t.text)}</span>
+        <button class="star-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleStar('${list}',${t.id})" title="Mark as top priority">${isP?'<svg width="14" height="14" viewBox="0 0 24 24" fill="#d97706" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'}</button>
+        <div class="task-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('${list}',${t.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delTask('${list}',${t.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>
+      </div>
+      ${descHtml}${dueBadge?'<div class="task-meta">'+dueBadge+'</div>':''}`;
+      addDrag(d,list);
+    }
+    el.appendChild(d);
   });
-  if(tasks[list].length===0){
-    const z=document.createElement('div');
-    z.className='zero-state';
-    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 9h18"/><path d="M9 14h6M9 17h4"/></svg>No tasks yet — add one above`;
+
+  // Inline add row
+  if(addTarget===list){
+    const addRow=document.createElement('div');
+    addRow.className='inline-form';
+    addRow.innerHTML=`
+      <div class="inline-form-lbl">Task name</div>
+      <input type="text" id="inlineAddInput" placeholder="What needs to be done?" style="font-size:14px;font-weight:500" onkeydown="if(event.key==='Escape')cancelInlineAdd()">
+      <div class="inline-form-lbl">Description <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <textarea id="inlineAddDesc" rows="2" placeholder="Add more details..."></textarea>
+      <div class="inline-form-lbl">Due date <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <div class="inline-form-row">
+        <input type="date" id="inlineAddDate" style="flex:1">
+        <input type="time" id="inlineAddTime" style="width:110px">
+      </div>
+      <div class="inline-form-actions">
+        <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="cancelInlineAdd()" style="font-size:11px">Cancel</button>
+        <button class="chip-primary" onmousedown="event.preventDefault()" onclick="confirmInlineAdd('${list}')" style="font-size:11px">Add task</button>
+      </div>`;
+    el.appendChild(addRow);
+    setTimeout(()=>{const inp=document.getElementById('inlineAddInput');if(inp)inp.focus();},30);
+  } else if(tasks[list].length===0&&addTarget!==list){
+    const z=document.createElement('div');z.className='zero-state';
+    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 9h18"/><path d="M9 14h6M9 17h4"/></svg>No tasks yet — click + Add`;
     el.appendChild(z);
   }
   document.getElementById(countId).textContent=`${tasks[list].length} tasks · ${top3.length} ★`;
@@ -638,13 +804,23 @@ function renderHabits(){
   const countEl=document.getElementById('habitCount');
   if(countEl) countEl.textContent=`${doneCount}/${habits.length} done`;
 
-  // Filter based on toggle state
-  const visible=habits.filter(h=>showCompletedHabits?h.done:!h.done);
+  // Filter by today's day of week, then by completion toggle
+  const todayDow=new Date().getDay();
+  const visible=habits.filter(h=>{
+    const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
+    if(!activeDays.includes(todayDow))return false;
+    return showCompletedHabits?h.done:!h.done;
+  });
 
   visible.forEach(h=>{
     const d=document.createElement('div');
     d.className='habit-item'+(h.done?' done':'');
-    d.innerHTML=`<button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit(${h.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0">${h.done?'Undo':'Done'}</button><span style="flex:1;font-size:14px;color:var(--text);${h.done?'text-decoration:line-through;opacity:0.6':''}">${esc(h.text)}</span><span class="streak-badge">🔥${h.streak}d</span><div class="habit-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('habits',${h.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit(${h.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>`;
+    const activeDays2=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
+    const isAllDays=activeDays2.length===7;
+    const dayLabels=['Su','Mo','Tu','We','Th','Fr','Sa'];
+    const dayPills=isAllDays?'':activeDays2.map(d=>`<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:var(--blue-bg);color:var(--blue);border:0.5px solid var(--blue)">${dayLabels[d]}</span>`).join('');
+    d.style.flexDirection='column';d.style.alignItems='stretch';
+    d.innerHTML=`<div style="display:flex;align-items:center;gap:6px"><button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit(${h.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0">${h.done?'Undo':'Done'}</button><span style="flex:1;font-size:14px;color:var(--text);${h.done?'text-decoration:line-through;opacity:0.6':''}">${esc(h.text)}</span><span class="streak-badge">🔥${h.streak}d</span><div class="habit-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('habits',${h.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit(${h.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>`;
     el.appendChild(d);
   });
 
@@ -693,44 +869,104 @@ function toggleHabit(id){
 }
 function delHabit(id){habits=habits.filter(h=>h.id!==id);save(SK.habits,habits);renderHabits();}
 
-function openAdd(list){addTarget=list;document.getElementById('addModalTitle').textContent=list==='habits'?'Add habit':'Add task';document.getElementById('addInput').value='';document.getElementById('addModal').classList.add('open');setTimeout(()=>document.getElementById('addInput').focus(),60);}
+function openAdd(list){
+  if(list==='habits'){
+    document.getElementById('addModalTitle').textContent='Add habit';
+    document.getElementById('addInput').value='';
+    document.getElementById('addDaysRow').style.display='';
+    setDaysChecked('addDaysChecks',[0,1,2,3,4,5,6]);
+    document.getElementById('addModal').classList.add('open');
+    setTimeout(()=>document.getElementById('addInput').focus(),60);
+    return;
+  }
+  editTarget={list:'',id:0};
+  addTarget=list;
+  render();
+}
+function cancelInlineAdd(){addTarget='';render();}
+function confirmInlineAdd(list){
+  const inp=document.getElementById('inlineAddInput');
+  const v=inp?inp.value.trim():'';if(!v)return;
+  const desc=(document.getElementById('inlineAddDesc')?.value||'').trim();
+  const dueDate=document.getElementById('inlineAddDate')?.value||'';
+  const dueTime=document.getElementById('inlineAddTime')?.value||'';
+  tasks[list].push({id:nextId[list]++,text:v,star:false,desc,dueDate,dueTime});
+  save(SK.tasks,tasks);save(SK.nextid,nextId);
+  addTarget='';render();
+}
+function handleInlineAddKey(e,list){
+  if(e.key==='Enter')confirmInlineAdd(list);
+  if(e.key==='Escape')cancelInlineAdd();
+}
+
 function confirmAdd(){
   const v=document.getElementById('addInput').value.trim();if(!v)return;
-  if(addTarget==='habits'){habits.push({id:nextId.habits++,text:v,done:false,streak:0,lastDone:''});save(SK.habits,habits);}
-  else{tasks[addTarget].push({id:nextId[addTarget]++,text:v,star:false});save(SK.tasks,tasks);}
-  save(SK.nextid,nextId);closeModal('add');render();
+  const days=getDaysChecked('addDaysChecks');
+  habits.push({id:nextId.habits++,text:v,done:false,streak:0,lastDone:'',days});
+  save(SK.habits,habits);save(SK.nextid,nextId);
+  closeModal('add');render();
 }
+
+function getDaysChecked(containerId){
+  const days=[];
+  document.querySelectorAll('#'+containerId+' input[type=checkbox]').forEach(cb=>{
+    if(cb.checked) days.push(parseInt(cb.value));
+  });
+  return days.length===7||days.length===0?[0,1,2,3,4,5,6]:days;
+}
+function setDaysChecked(containerId,days){
+  const all=[0,1,2,3,4,5,6];
+  const active=(!days||days.length===0)?all:days;
+  document.querySelectorAll('#'+containerId+' input[type=checkbox]').forEach(cb=>{
+    cb.checked=active.includes(parseInt(cb.value));
+  });
+}
+
+
 function openEdit(list,id){
-  editTarget={list,id};
-  const src=list==='habits'?habits.find(h=>h.id===id):tasks[list].find(t=>t.id===id);
-  if(!src)return;
-  document.getElementById('editInput').value=src.text;
-  document.getElementById('editModalTitle').textContent=list==='habits'?'Edit habit':'Edit task';
-  const streakRow=document.getElementById('editStreakRow');
   if(list==='habits'){
+    // Habits keep modal (has streak field)
+    const src=habits.find(h=>h.id===id);if(!src)return;
+    editTarget={list,id};
+    document.getElementById('editInput').value=src.text;
+    document.getElementById('editModalTitle').textContent='Edit habit';
+    const streakRow=document.getElementById('editStreakRow');
     streakRow.style.display='';
     document.getElementById('editStreakInput').value=src.streak||0;
-  } else {
-    streakRow.style.display='none';
+    setDaysChecked('editDaysChecks',src.days||[0,1,2,3,4,5,6]);
+    document.getElementById('editModal').classList.add('open');
+    setTimeout(()=>document.getElementById('editInput').focus(),60);
+    return;
   }
-  document.getElementById('editModal').classList.add('open');
-  setTimeout(()=>document.getElementById('editInput').focus(),60);
+  addTarget='';
+  editTarget={list,id};
+  render();
 }
+function cancelInlineEdit(){editTarget={list:'',id:0};render();}
+function confirmInlineEdit(list,id){
+  const v=(document.getElementById('inlineEditTitle')?.value||'').trim();if(!v)return;
+  const desc=(document.getElementById('inlineEditDesc')?.value||'').trim();
+  const dueDate=document.getElementById('inlineEditDate')?.value||'';
+  const dueTime=document.getElementById('inlineEditTime')?.value||'';
+  const t=tasks[list].find(t=>t.id===id);
+  if(t){t.text=v;t.desc=desc;t.dueDate=dueDate;t.dueTime=dueTime;}
+  save(SK.tasks,tasks);
+  editTarget={list:'',id:0};render();
+}
+function handleInlineEditKey(e,list,id){
+  if(e.key==='Escape')cancelInlineEdit();
+}
+
 function confirmEdit(){
   const v=document.getElementById('editInput').value.trim();if(!v)return;
-  if(editTarget.list==='habits'){
-    const h=habits.find(h=>h.id===editTarget.id);
-    if(h){
-      h.text=v;
-      const s=parseInt(document.getElementById('editStreakInput').value);
-      h.streak=isNaN(s)?h.streak:Math.max(0,s);
-    }
-    save(SK.habits,habits);
-  } else {
-    const t=tasks[editTarget.list].find(t=>t.id===editTarget.id);
-    if(t)t.text=v;
-    save(SK.tasks,tasks);
+  const h=habits.find(h=>h.id===editTarget.id);
+  if(h){
+    h.text=v;
+    const s=parseInt(document.getElementById('editStreakInput').value);
+    h.streak=isNaN(s)?h.streak:Math.max(0,s);
+    h.days=getDaysChecked('editDaysChecks');
   }
+  save(SK.habits,habits);
   closeModal('edit');render();
 }
 function closeModal(w){document.getElementById(w+'Modal').classList.remove('open');}
@@ -891,6 +1127,72 @@ function stopChime(){
   chimeNodes=[];
   document.getElementById('timerDisp').style.color='';
   timerReset();
+}
+
+// Timer presets
+let timerPresets=[];
+
+function loadPresets(){
+  timerPresets=load(SK.presets,[300,900,1800]); // default: 5min, 15min, 30min
+  renderPresets();
+}
+
+function renderPresets(){
+  const el=document.getElementById('presetBtns');
+  if(!el)return;
+  el.innerHTML='';
+  timerPresets.forEach((secs,i)=>{
+    const h=Math.floor(secs/3600);
+    const m=Math.floor((secs%3600)/60);
+    const s=secs%60;
+    let label='';
+    if(h>0) label+=h+'h ';
+    if(m>0) label+=m+'m ';
+    if(s>0) label+=s+'s';
+    label=label.trim();
+    const btn=document.createElement('button');
+    btn.className='chip-secondary';
+    btn.style.cssText='font-size:11px;padding:3px 10px';
+    btn.textContent=label;
+    btn.onclick=()=>{
+      const fi=document.getElementById('timerInput');
+      fi.value=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      timerReset();
+    };
+    el.appendChild(btn);
+  });
+}
+
+function openSetPreset(){
+  const val=parseTimerInput();
+  if(!val||val<=0){alert('Set a time first.');return;}
+  const picker=document.getElementById('presetPicker');
+  const btns=document.getElementById('presetPickerBtns');
+  btns.innerHTML='';
+  timerPresets.forEach((secs,i)=>{
+    const h=Math.floor(secs/3600),m=Math.floor((secs%3600)/60),s=secs%60;
+    let lbl='';
+    if(h>0)lbl+=h+'h ';
+    if(m>0)lbl+=m+'m ';
+    if(s>0)lbl+=s+'s';
+    lbl=lbl.trim();
+    const btn=document.createElement('button');
+    btn.className='chip-secondary';
+    btn.style.cssText='font-size:12px;padding:5px 12px;text-align:left';
+    btn.textContent=`Slot ${i+1}: ${lbl}`;
+    btn.onclick=()=>{
+      timerPresets[i]=val;
+      save(SK.presets,timerPresets);
+      renderPresets();
+      closePresetPicker();
+    };
+    btns.appendChild(btn);
+  });
+  document.getElementById('presetPickerBackdrop').style.display='flex';
+}
+
+function closePresetPicker(){
+  document.getElementById('presetPickerBackdrop').style.display='none';
 }
 
 function playChime(){
@@ -1142,9 +1444,20 @@ function logEntry(){
   if(idx>=0)history[idx]=entry;else history.push(entry);
   history.sort((a,b)=>a.date.localeCompare(b.date));
   save(SK.history,history);updateMetrics();
+
+  // Clear the form after saving
+  document.querySelectorAll('input[name=mood]').forEach(r=>r.checked=false);
+  document.querySelectorAll('input[name=dayR]').forEach(r=>r.checked=false);
+  document.getElementById('gratefulTx').value='';
+  document.getElementById('accomplishTx').value='';
+  refl={grateful:'',accomplish:''};
+  save(SK.refl,refl);
+  save(SK.mood,null);
+  save(SK.day,null);
+
   const btn=document.getElementById('saveEntryBtn');
-  btn.textContent='✓ Saved!';btn.style.background='#16a34a';
-  setTimeout(()=>{btn.textContent="Save today's entry";btn.style.background='';},2000);
+  btn.textContent='✓ Saved!';btn.classList.add('chip-success');btn.classList.remove('chip-primary');
+  setTimeout(()=>{btn.textContent="Save today's entry";btn.classList.remove('chip-success');btn.classList.add('chip-primary');},2500);
 }
 
 function updateMetrics(){
@@ -1171,11 +1484,91 @@ function buildCharts(data){
   dayChart=new Chart(document.getElementById('dayCanvas').getContext('2d'),opts('#16a34a',days));
 }
 
+let editEntryIdx=-1;
+
 function buildHistory(){
   const el=document.getElementById('historyRows');
   const me=['','😞','😕','😐','🙂','😄'],de=['','💩','😓','😊','🔥','🏆'];
-  if(!history.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:10px 0">No entries yet — save your first entry!</div>';return;}
-  el.innerHTML=[...history].reverse().map(h=>`<div class="history-row"><span class="history-date">${h.date}</span><span style="font-size:14px">${me[h.mood]}</span><span style="font-size:14px">${de[h.day]}</span><span class="history-quote">${h.grateful?'"'+esc(h.grateful.slice(0,50))+(h.grateful.length>50?'…':'')+ '"':''}</span></div>`).join('');
+  if(!history.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:10px 0">No entries yet — save your first entry!</div>';
+    return;
+  }
+  el.innerHTML='';
+  [...history].reverse().forEach((h,ri)=>{
+    const realIdx=history.length-1-ri;
+    const ts=h.timestamp?new Date(h.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+    const row=document.createElement('div');
+    row.className='history-row';
+    row.style.cssText='flex-direction:column;align-items:stretch;padding:8px 0;gap:4px;cursor:pointer';
+    row.innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="history-date">${h.date}${ts?' '+ts:''}</span>
+        <span style="font-size:15px">${me[h.mood]||'—'}</span>
+        <span style="font-size:15px">${de[h.day]||'—'}</span>
+        <span class="history-quote">${h.grateful?'"'+esc(h.grateful.slice(0,45))+(h.grateful.length>45?'…':'')+'"':''}</span>
+        <button class="chip-secondary" style="margin-left:auto;font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openEditEntry(${realIdx},event)">Edit</button>
+      </div>
+      ${h.accomplish?`<div style="font-size:11px;color:var(--text2);padding-left:4px">🏅 ${esc(h.accomplish.slice(0,60))}${h.accomplish.length>60?'…':''}</div>`:''}
+    `;
+    el.appendChild(row);
+  });
+}
+
+function openEditEntry(idx,e){
+  if(e)e.stopPropagation();
+  editEntryIdx=idx;
+  const h=history[idx];
+  if(!h)return;
+  document.getElementById('eeDate').value=h.date||'';
+  const ts=h.timestamp?new Date(h.timestamp):null;
+  document.getElementById('eeTime').value=ts?`${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}`:'';
+  document.querySelectorAll('input[name=eeMood]').forEach(r=>{r.checked=+r.value===h.mood;});
+  document.querySelectorAll('input[name=eeDay]').forEach(r=>{r.checked=+r.value===h.day;});
+  document.getElementById('eeGrateful').value=h.grateful||'';
+  document.getElementById('eeAccomplish').value=h.accomplish||'';
+  document.getElementById('editEntryModal').classList.add('open');
+}
+
+function saveEditEntry(){
+  if(editEntryIdx<0)return;
+  const h=history[editEntryIdx];
+  if(!h)return;
+  const newDate=document.getElementById('eeDate').value||h.date;
+  const timeVal=document.getElementById('eeTime').value;
+  let ts=h.timestamp||Date.now();
+  if(newDate||timeVal){
+    const base=new Date(newDate||h.date);
+    if(timeVal){const [hh,mm]=timeVal.split(':').map(Number);base.setHours(hh,mm,0,0);}
+    ts=base.getTime();
+  }
+  const mood=+(document.querySelector('input[name=eeMood]:checked')?.value||h.mood);
+  const day=+(document.querySelector('input[name=eeDay]:checked')?.value||h.day);
+  history[editEntryIdx]={
+    ...h,
+    date:newDate,
+    mood,day,
+    grateful:document.getElementById('eeGrateful').value,
+    accomplish:document.getElementById('eeAccomplish').value,
+    timestamp:ts
+  };
+  history.sort((a,b)=>a.date.localeCompare(b.date));
+  save(SK.history,history);
+  closeEditEntry();
+  updateMetrics();
+}
+
+function deleteEntry(){
+  if(editEntryIdx<0)return;
+  if(!confirm('Delete this entry? This cannot be undone.'))return;
+  history.splice(editEntryIdx,1);
+  save(SK.history,history);
+  closeEditEntry();
+  updateMetrics();
+}
+
+function closeEditEntry(){
+  editEntryIdx=-1;
+  document.getElementById('editEntryModal').classList.remove('open');
 }
 
 function switchTab(which){
@@ -1266,6 +1659,7 @@ function initApp(){
   document.querySelectorAll('input[name=mood]').forEach(r=>r.addEventListener('change',()=>save(SK.mood,r.value)));
   document.querySelectorAll('input[name=dayR]').forEach(r=>r.addEventListener('change',()=>save(SK.day,r.value)));
 
+  loadPresets();
   updateProg();
   updatePersonalProg();
   render();
