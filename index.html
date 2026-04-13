@@ -162,12 +162,22 @@
   .streak-badge { font-size: 10px; background: var(--green-bg); color: var(--green); border: 0.5px solid #86efac; border-radius: 8px; padding: 2px 6px; white-space: nowrap; }
 
   /* INPUTS */
-  input[type=text], input[type=number], input[type=time], textarea, select {
+  input[type=text], input[type=number], input[type=time], input[type=date], textarea, select {
     background: var(--surface2); border: 0.5px solid var(--border2); border-radius: var(--radius-sm);
     padding: 6px 9px; font-size: 13px; color: var(--text); font-family: 'DM Sans', sans-serif; outline: none;
     min-width: 0; max-width: 100%;
   }
-  input[type=text]:focus, input[type=number]:focus, textarea:focus { border-color: var(--blue); }
+  input[type=text]:focus, input[type=number]:focus, input[type=date]:focus, input[type=time]:focus, textarea:focus { border-color: var(--blue); }
+  input[type=date]::-webkit-calendar-picker-indicator,
+  input[type=time]::-webkit-calendar-picker-indicator {
+    filter: var(--icon-filter, none);
+    cursor: pointer;
+    opacity: 0.6;
+  }
+  input[type=date]::-webkit-calendar-picker-indicator:hover,
+  input[type=time]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+  [data-theme="dark"] input[type=date]::-webkit-calendar-picker-indicator,
+  [data-theme="dark"] input[type=time]::-webkit-calendar-picker-indicator { filter: invert(1); }
   textarea { resize: vertical; min-height: 56px; width: 100%; }
   input[type=checkbox] { accent-color: var(--blue); width: 14px; height: 14px; cursor: pointer; }
 
@@ -708,6 +718,42 @@ let timerTotal=25*60,timerLeft=25*60,timerRunning=false,timerIv=null;
 let moodChart=null,dayChart=null;
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function fmt12(timeStr){
+  if(!timeStr)return '';
+  const [hh,mm]=timeStr.split(':').map(Number);
+  const ampm=hh>=12?'PM':'AM';
+  const h=hh%12||12;
+  return `${h}:${String(mm).padStart(2,'0')} ${ampm}`;
+}
+
+function parse12(str){
+  if(!str)return '';
+  str=str.trim().toUpperCase();
+  const m=str.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/);
+  if(!m)return '';
+  let hh=parseInt(m[1]),mm=parseInt(m[2]);
+  const ampm=m[3];
+  if(ampm==='PM'&&hh!==12)hh+=12;
+  if(ampm==='AM'&&hh===12)hh=0;
+  if(hh>23||mm>59)return '';
+  return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+}
+
+function validateDateInput(el){
+  const v=el.value.trim();
+  if(!v)return;
+  const d=new Date(v);
+  if(isNaN(d.getTime())){el.style.borderColor='var(--red)';}
+  else{el.style.borderColor='';}
+}
+
+function fmtDue(dueDate,dueTime){
+  if(!dueDate)return '';
+  const datePart=dueDate;
+  const timePart=dueTime?fmt12(dueTime):'';
+  return timePart?`${datePart} ${timePart}`:datePart;
+}
 function getTop3(list){return tasks[list].filter(t=>t.star).map(t=>t.id).slice(0,3);}
 
 function renderTasks(list,cid,countId){
@@ -730,7 +776,10 @@ function renderTasks(list,cid,countId){
         <div class="inline-form-lbl">Due date <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
         <div class="inline-form-row">
           <input type="date" id="inlineEditDate" value="${t.dueDate||''}" style="flex:1">
-          <input type="time" id="inlineEditTime" value="${t.dueTime||''}" style="width:110px">
+          <div style="display:flex;align-items:center;gap:4px">
+            <input type="time" id="inlineEditTime" value="${t.dueTime||''}" style="width:110px">
+            <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="document.getElementById('inlineEditTime').value=''" style="font-size:10px;padding:2px 7px;flex-shrink:0" title="✕ Clear">✕</button>
+          </div>
         </div>
         <div class="inline-form-actions">
           <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="cancelInlineEdit()" style="font-size:11px">Cancel</button>
@@ -744,9 +793,8 @@ function renderTasks(list,cid,countId){
         const now2=new Date();
         const due=new Date(t.dueDate+(t.dueTime?'T'+t.dueTime:'T23:59'));
         const diffH=(due-now2)/3600000;
-        const fmt=t.dueDate+(t.dueTime?' '+t.dueTime:'');
         const cls=diffH<0?'overdue':diffH<24?'soon':'';
-        dueBadge=`<span class="due-badge ${cls}">📅 ${fmt}</span>`;
+        dueBadge=`<span class="due-badge ${cls}">📅 ${fmtDue(t.dueDate,t.dueTime)}</span>`;
       }
       const descHtml=t.desc?`<div class="task-desc">${esc(t.desc)}</div>`:'';
       d.style.flexDirection='column';d.style.alignItems='stretch';d.style.cursor='default';
@@ -774,7 +822,10 @@ function renderTasks(list,cid,countId){
       <div class="inline-form-lbl">Due date <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
       <div class="inline-form-row">
         <input type="date" id="inlineAddDate" style="flex:1">
-        <input type="time" id="inlineAddTime" style="width:110px">
+        <div style="display:flex;align-items:center;gap:4px">
+          <input type="time" id="inlineAddTime" style="width:110px">
+          <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="document.getElementById('inlineAddTime').value=''" style="font-size:10px;padding:2px 7px;flex-shrink:0" title="✕ Clear">✕</button>
+        </div>
       </div>
       <div class="inline-form-actions">
         <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="cancelInlineAdd()" style="font-size:11px">Cancel</button>
@@ -1538,7 +1589,7 @@ function saveEditEntry(){
   let ts=h.timestamp||Date.now();
   if(newDate||timeVal){
     const base=new Date(newDate||h.date);
-    if(timeVal){const [hh,mm]=timeVal.split(':').map(Number);base.setHours(hh,mm,0,0);}
+      if(timeVal){const [hh,mm]=timeVal.split(':').map(Number);base.setHours(hh,mm,0,0);}
     ts=base.getTime();
   }
   const mood=+(document.querySelector('input[name=eeMood]:checked')?.value||h.mood);
