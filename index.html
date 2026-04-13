@@ -57,13 +57,14 @@
   .day-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px 18px; }
   .day-name { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
   .day-date { font-size: 12px; color: var(--text2); margin-bottom: 12px; }
-  .rating-row { display: flex; gap: 16px; }
-  .rating-group label.lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text3); display: block; margin-bottom: 4px; }
-  .radio-strip { display: flex; gap: 2px; align-items: center; }
-  .radio-strip input[type=radio] { display: none; }
-  .radio-strip label { font-size: 17px; cursor: pointer; padding: 3px 4px; border-radius: 6px; transition: background 0.15s; }
-  .radio-strip label:hover { background: var(--surface2); }
-  .radio-strip input[type=radio]:checked + label { background: var(--surface2); outline: 2px solid var(--border2); }
+  .rating-row { display: flex; flex-direction: column; gap: 10px; }
+  .rating-group { display: flex; align-items: center; gap: 10px; }
+  .rating-group label.lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text3); min-width: 36px; }
+  .radio-strip { display: flex; gap: 6px; align-items: center; }
+  .radio-strip input[type=radio] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border2); background: var(--surface); cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+  .radio-strip input[type=radio]:hover { border-color: var(--text2); }
+  .radio-strip input[type=radio]:checked { background: var(--text2); border-color: var(--text2); }
+  .rating-emoji { font-size: 22px; line-height: 1; min-width: 28px; text-align: center; transition: all 0.2s; }
 
   .progress-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between; }
   .progress-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -240,8 +241,8 @@
     .habit-actions { opacity: 1; }
     .toggle-strip { gap: 6px; }
     .chip, .chip-primary, .chip-secondary, .chip-success { padding: 6px 14px; font-size: 13px; }
-    .rating-row { gap: 16px; }
-    .radio-strip label { font-size: 20px; padding: 4px 5px; }
+    .rating-row { gap: 10px; }
+    .radio-strip input[type=radio] { width: 22px; height: 22px; }
   }
   @media (max-width: 600px) {
     .app { padding: 10px 10px; }
@@ -258,7 +259,7 @@
     .panel-header .row { flex-wrap: wrap; }
     .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
     .tab-bar { flex-wrap: wrap; }
-    .rating-row { flex-direction: column; gap: 10px; }
+    .rating-emoji { font-size: 24px; }
     .toggle-strip { gap: 5px; }
     .chip, .chip-primary, .chip-secondary, .chip-success { font-size: 12px; padding: 5px 12px; }
     .theme-btn { padding: 4px 10px; font-size: 11px; }
@@ -301,22 +302,24 @@
         <div class="rating-group">
           <label class="lbl">Mood</label>
           <div class="radio-strip">
-            <input type="radio" name="mood" id="m1" value="1"><label for="m1">😞</label>
-            <input type="radio" name="mood" id="m2" value="2"><label for="m2">😕</label>
-            <input type="radio" name="mood" id="m3" value="3"><label for="m3">😐</label>
-            <input type="radio" name="mood" id="m4" value="4"><label for="m4">🙂</label>
-            <input type="radio" name="mood" id="m5" value="5"><label for="m5">😄</label>
+            <input type="radio" name="mood" id="m1" value="1" onchange="updateRatingEmoji()">
+            <input type="radio" name="mood" id="m2" value="2" onchange="updateRatingEmoji()">
+            <input type="radio" name="mood" id="m3" value="3" onchange="updateRatingEmoji()">
+            <input type="radio" name="mood" id="m4" value="4" onchange="updateRatingEmoji()">
+            <input type="radio" name="mood" id="m5" value="5" onchange="updateRatingEmoji()">
           </div>
+          <span class="rating-emoji" id="moodEmoji">😐</span>
         </div>
         <div class="rating-group">
           <label class="lbl">Day</label>
           <div class="radio-strip">
-            <input type="radio" name="dayR" id="d1" value="1"><label for="d1">💩</label>
-            <input type="radio" name="dayR" id="d2" value="2"><label for="d2">😓</label>
-            <input type="radio" name="dayR" id="d3" value="3"><label for="d3">😊</label>
-            <input type="radio" name="dayR" id="d4" value="4"><label for="d4">🔥</label>
-            <input type="radio" name="dayR" id="d5" value="5"><label for="d5">🏆</label>
+            <input type="radio" name="dayR" id="d1" value="1" onchange="updateRatingEmoji()">
+            <input type="radio" name="dayR" id="d2" value="2" onchange="updateRatingEmoji()">
+            <input type="radio" name="dayR" id="d3" value="3" onchange="updateRatingEmoji()">
+            <input type="radio" name="dayR" id="d4" value="4" onchange="updateRatingEmoji()">
+            <input type="radio" name="dayR" id="d5" value="5" onchange="updateRatingEmoji()">
           </div>
+          <span class="rating-emoji" id="dayEmoji">😐</span>
         </div>
       </div>
       <div style="border-top:0.5px solid var(--border);margin-top:10px;padding-top:8px">
@@ -1471,6 +1474,17 @@ function drawPie(){
 updateTimerUI();
 startDropAnim();
 
+function updateRatingEmoji(){
+  const moodEmojis=['😐','😞','😕','😐','🙂','😄'];
+  const dayEmojis=['😐','💩','😓','😊','🔥','🏆'];
+  const mVal=+(document.querySelector('input[name=mood]:checked')?.value||0);
+  const dVal=+(document.querySelector('input[name=dayR]:checked')?.value||0);
+  const mEl=document.getElementById('moodEmoji');
+  const dEl=document.getElementById('dayEmoji');
+  if(mEl) mEl.textContent=moodEmojis[mVal]||'😐';
+  if(dEl) dEl.textContent=dayEmojis[dVal]||'😐';
+}
+
 function saveRefl(){refl.grateful=document.getElementById('gratefulTx').value;refl.accomplish=document.getElementById('accomplishTx').value;save(SK.refl,refl);}
 function toggleRefl(){
   const wrap=document.getElementById('reflWrap');
@@ -1707,8 +1721,9 @@ function initApp(){
     document.getElementById('themeBtn').textContent='☀️ Light';
   }
 
-  document.querySelectorAll('input[name=mood]').forEach(r=>r.addEventListener('change',()=>save(SK.mood,r.value)));
-  document.querySelectorAll('input[name=dayR]').forEach(r=>r.addEventListener('change',()=>save(SK.day,r.value)));
+  document.querySelectorAll('input[name=mood]').forEach(r=>r.addEventListener('change',()=>{save(SK.mood,r.value);updateRatingEmoji();}));
+  document.querySelectorAll('input[name=dayR]').forEach(r=>r.addEventListener('change',()=>{save(SK.day,r.value);updateRatingEmoji();}));
+  updateRatingEmoji();
 
   loadPresets();
   updateProg();
