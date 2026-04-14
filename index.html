@@ -469,14 +469,16 @@
             <div class="tab-bar">
               <button class="tab active" id="tabCharts" onclick="switchTab('charts')">Charts</button>
               <button class="tab" id="tabHistory" onclick="switchTab('history')">Log</button>
+              <button class="tab" id="tabWins" onclick="switchTab('wins')">Wins</button>
             </div>
           </div>
           <div id="panelCharts">
-            <div class="metrics-grid">
+            <div class="metrics-grid" style="grid-template-columns:repeat(5,1fr)">
               <div class="metric-box"><div class="metric-num" id="mAvgMood">—</div><div class="metric-lbl">Avg mood</div></div>
               <div class="metric-box"><div class="metric-num" id="mAvgDay">—</div><div class="metric-lbl">Avg day</div></div>
               <div class="metric-box"><div class="metric-num" id="mEntries">0</div><div class="metric-lbl">Entries</div></div>
               <div class="metric-box"><div class="metric-num" id="mStreak">0</div><div class="metric-lbl">Day streak</div></div>
+              <div class="metric-box" style="cursor:pointer" onclick="switchTab('wins')"><div class="metric-num" id="mWins">0</div><div class="metric-lbl">🏆 Wins</div></div>
             </div>
             <div class="charts-row">
               <div class="chart-panel"><div class="section-lbl" style="margin-bottom:6px">Mood trend</div><canvas id="moodCanvas" height="75"></canvas></div>
@@ -485,6 +487,9 @@
           </div>
           <div id="panelHistory" style="display:none">
             <div class="history-list" id="historyRows"></div>
+          </div>
+          <div id="panelWins" style="display:none">
+            <div class="history-list" id="winsRows"></div>
           </div>
         </div>
       </div>
@@ -542,6 +547,47 @@
       <div class="row" style="gap:7px">
         <button class="chip-secondary" onclick="closeEditEntry()">Cancel</button>
         <button class="chip-primary" onclick="saveEditEntry()">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WIN MODAL -->
+<div id="winModal" class="modal-backdrop" onclick="if(event.target===this)closeWinModal()">
+  <div class="modal" style="max-width:420px;width:min(420px,calc(100vw - 32px))">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="font-size:20px">🏆</span>
+      <div class="modal-title" style="margin:0">Mark as a Win?</div>
+    </div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">This task will be saved to your Wins log. Add a note about why it was a win.</p>
+    <div id="winTaskPreview" style="font-size:13px;font-weight:500;color:var(--text);background:var(--surface2);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:12px;border-left:3px solid var(--amber)"></div>
+    <div class="section-lbl" style="margin-bottom:4px">Why was this a win? <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+    <textarea id="winReason" placeholder="Describe the impact, what you learned, or why it matters..." style="width:100%;min-height:80px;resize:vertical;margin-bottom:14px"></textarea>
+    <div class="row" style="justify-content:space-between;gap:7px">
+      <button class="chip-secondary" onclick="skipWin()">Skip — just complete</button>
+      <div class="row" style="gap:7px">
+        <button class="chip-secondary" onclick="closeWinModal()">Cancel</button>
+        <button class="chip-primary" onclick="confirmWin()">Save as Win</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WIN EDIT MODAL -->
+<div id="winEditModal" class="modal-backdrop" onclick="if(event.target===this)closeWinEdit()">
+  <div class="modal" style="max-width:420px;width:min(420px,calc(100vw - 32px))">
+    <div class="modal-title">Edit Win</div>
+    <div class="section-lbl" style="margin-bottom:4px">Task name</div>
+    <input type="text" id="winEditTitle" style="width:100%;margin-bottom:10px">
+    <div class="section-lbl" style="margin-bottom:4px">Details</div>
+    <textarea id="winEditDesc" style="width:100%;min-height:56px;resize:vertical;margin-bottom:10px"></textarea>
+    <div class="section-lbl" style="margin-bottom:4px">Why it was a win</div>
+    <textarea id="winEditReason" style="width:100%;min-height:56px;resize:vertical;margin-bottom:14px"></textarea>
+    <div class="row" style="justify-content:space-between;gap:7px">
+      <button class="chip-secondary" style="color:var(--red);border-color:var(--red)" onclick="deleteWin()">Delete</button>
+      <div class="row" style="gap:7px">
+        <button class="chip-secondary" onclick="closeWinEdit()">Cancel</button>
+        <button class="chip-primary" onclick="saveWinEdit()">Save</button>
       </div>
     </div>
   </div>
@@ -611,7 +657,7 @@ const todayKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}
 document.getElementById('dayName').textContent=DAYS[now.getDay()].toUpperCase();
 document.getElementById('dateStr').textContent=`${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
 
-const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme',lastDate:'dpd_lastDate',presets:'dpd_presets'};
+const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme',lastDate:'dpd_lastDate',presets:'dpd_presets',wins:'dpd_wins'};
 const GS_URL='https://script.google.com/macros/s/AKfycbxAjW1BJFW-1GgmC1vx5H_RGa7ltPcaPLNWJY4YvQSwRf1jQxx2aCCRFwqMwr77Jibt1Q/exec';
 let _syncPending={};
 let _syncTimer=null;
@@ -715,6 +761,7 @@ let settings={wStart:'09:00',wEnd:'17:00',pStart:'05:00',pEnd:'22:00',priv:false
 let refl={grateful:'',accomplish:''};
 let nextId={work:10,personal:10,habits:10};
 let vis={work:true,personal:true,habits:true};
+let wins=[];
 let showCompletedHabits=false;
 let addTarget='',editTarget={list:'',id:0};
 let timerTotal=25*60,timerLeft=25*60,timerRunning=false,timerIv=null;
@@ -784,6 +831,10 @@ function renderTasks(list,cid,countId){
             <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="document.getElementById('inlineEditTime').value=''" style="font-size:10px;padding:2px 7px;flex-shrink:0" title="✕ Clear">✕</button>
           </div>
         </div>
+        ${list==='work'?`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0;border-top:0.5px solid var(--border);margin-top:2px">
+          <input type="checkbox" id="inlineEditWin" ${t.isWin?'checked':''} style="accent-color:var(--amber);width:16px;height:16px;cursor:pointer;flex-shrink:0">
+          <span style="font-size:12px;font-weight:500;color:var(--text)">🏆 Mark as a Win when completed</span>
+        </label>`:''}
         <div class="inline-form-actions">
           <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="cancelInlineEdit()" style="font-size:11px">Cancel</button>
           <button class="chip-primary" onmousedown="event.preventDefault()" onclick="confirmInlineEdit('${list}',${t.id})" style="font-size:11px">Save</button>
@@ -803,7 +854,7 @@ function renderTasks(list,cid,countId){
       d.style.flexDirection='column';d.style.alignItems='stretch';d.style.cursor='default';
       d.innerHTML=`<div style="display:flex;align-items:center;gap:6px">
         <button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="completeTask('${list}',${t.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0">Done</button>
-        <span class="task-text" style="cursor:default">${esc(t.text)}</span>
+        <span class="task-text" style="cursor:default">${esc(t.text)}</span>${t.isWin?'<span style="font-size:11px;color:var(--amber);flex-shrink:0" title="Marked as a Win">🏆</span>':''}
         <button class="star-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleStar('${list}',${t.id})" title="Mark as top priority">${isP?'<svg width="14" height="14" viewBox="0 0 24 24" fill="#d97706" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'}</button>
         <div class="task-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('${list}',${t.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delTask('${list}',${t.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>
       </div>
@@ -830,6 +881,10 @@ function renderTasks(list,cid,countId){
           <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="document.getElementById('inlineAddTime').value=''" style="font-size:10px;padding:2px 7px;flex-shrink:0" title="✕ Clear">✕</button>
         </div>
       </div>
+      ${list==='work'?`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0;border-top:0.5px solid var(--border);margin-top:2px">
+        <input type="checkbox" id="inlineAddWin" style="accent-color:var(--amber);width:16px;height:16px;cursor:pointer;flex-shrink:0">
+        <span style="font-size:12px;font-weight:500;color:var(--text)">🏆 Mark as a Win when completed</span>
+      </label>`:''}
       <div class="inline-form-actions">
         <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="cancelInlineAdd()" style="font-size:11px">Cancel</button>
         <button class="chip-primary" onmousedown="event.preventDefault()" onclick="confirmInlineAdd('${list}')" style="font-size:11px">Add task</button>
@@ -905,7 +960,59 @@ function moveTask(list,idx,dir){
 
 function render(){renderTasks('work','workList','cWork');renderTasks('personal','personalList','cPersonal');renderHabits();updateMetrics();}
 
-function completeTask(list,id){tasks[list]=tasks[list].filter(t=>t.id!==id);save(SK.tasks,tasks);render();}
+let _pendingWin=null;
+
+function completeTask(list,id){
+  if(list==='work'){
+    const t=tasks[list].find(t=>t.id===id);
+    if(t){
+      _pendingWin={list,id,text:t.text,desc:t.desc||''};
+      document.getElementById('winTaskPreview').textContent=t.text;
+      document.getElementById('winReason').value='';
+      if(t.isWin){
+        // Pre-flagged as win — open modal directly
+        document.getElementById('winModal').classList.add('open');
+      } else {
+        // Not flagged — still ask but default is just complete
+        document.getElementById('winModal').classList.add('open');
+      }
+      return;
+    }
+  }
+  tasks[list]=tasks[list].filter(t=>t.id!==id);
+  save(SK.tasks,tasks);render();
+}
+
+function skipWin(){
+  if(!_pendingWin)return;
+  tasks[_pendingWin.list]=tasks[_pendingWin.list].filter(t=>t.id!==_pendingWin.id);
+  save(SK.tasks,tasks);
+  _pendingWin=null;
+  closeWinModal();render();
+}
+
+function confirmWin(){
+  if(!_pendingWin)return;
+  const reason=document.getElementById('winReason').value.trim();
+  const win={
+    id:Date.now(),
+    timestamp:Date.now(),
+    title:_pendingWin.text,
+    desc:_pendingWin.desc,
+    reason,
+  };
+  wins.push(win);
+  save(SK.wins,wins);
+  tasks[_pendingWin.list]=tasks[_pendingWin.list].filter(t=>t.id!==_pendingWin.id);
+  save(SK.tasks,tasks);
+  _pendingWin=null;
+  closeWinModal();render();buildWins();
+}
+
+function closeWinModal(){
+  _pendingWin=null;
+  document.getElementById('winModal').classList.remove('open');
+}
 function delTask(list,id){tasks[list]=tasks[list].filter(t=>t.id!==id);save(SK.tasks,tasks);render();}
 function toggleStar(list,id){
   const t=tasks[list].find(t=>t.id===id);if(!t)return;
@@ -944,7 +1051,8 @@ function confirmInlineAdd(list){
   const desc=(document.getElementById('inlineAddDesc')?.value||'').trim();
   const dueDate=document.getElementById('inlineAddDate')?.value||'';
   const dueTime=document.getElementById('inlineAddTime')?.value||'';
-  tasks[list].push({id:nextId[list]++,text:v,star:false,desc,dueDate,dueTime});
+  const isWin=list==='work'&&(document.getElementById('inlineAddWin')?.checked||false);
+  tasks[list].push({id:nextId[list]++,text:v,star:false,desc,dueDate,dueTime,isWin});
   save(SK.tasks,tasks);save(SK.nextid,nextId);
   addTarget='';render();
 }
@@ -1003,7 +1111,8 @@ function confirmInlineEdit(list,id){
   const dueDate=document.getElementById('inlineEditDate')?.value||'';
   const dueTime=document.getElementById('inlineEditTime')?.value||'';
   const t=tasks[list].find(t=>t.id===id);
-  if(t){t.text=v;t.desc=desc;t.dueDate=dueDate;t.dueTime=dueTime;}
+  const isWinEdit=list==='work'&&(document.getElementById('inlineEditWin')?.checked||false);
+  if(t){t.text=v;t.desc=desc;t.dueDate=dueDate;t.dueTime=dueTime;if(list==='work')t.isWin=isWinEdit;}
   save(SK.tasks,tasks);
   editTarget={list:'',id:0};render();
 }
@@ -1536,6 +1645,8 @@ function updateMetrics(){
   let check=todayKey;
   for(const h of sorted){if(h.date===check){streak++;const d=new Date(check);d.setDate(d.getDate()-1);check=d.toISOString().slice(0,10);}else if(h.date<check)break;}
   document.getElementById('mStreak').textContent=streak;
+  wins=load(SK.wins,[]);
+  document.getElementById('mWins').textContent=wins.length;
   buildCharts(recent);buildHistory();
 }
 
@@ -1547,6 +1658,70 @@ function buildCharts(data){
   if(moodChart)moodChart.destroy();if(dayChart)dayChart.destroy();
   moodChart=new Chart(document.getElementById('moodCanvas').getContext('2d'),opts('#2563eb',moods));
   dayChart=new Chart(document.getElementById('dayCanvas').getContext('2d'),opts('#16a34a',days));
+}
+
+// Wins
+let editWinIdx=-1;
+
+function buildWins(){
+  wins=load(SK.wins,[]);
+  const el=document.getElementById('winsRows');
+  if(!el)return;
+  if(!wins.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:10px 0">No wins yet — complete a Work Day task and mark it as a win!</div>';
+    return;
+  }
+  el.innerHTML='';
+  [...wins].sort((a,b)=>b.timestamp-a.timestamp).forEach((w,i)=>{
+    const realIdx=wins.findIndex(x=>x.id===w.id);
+    const d=new Date(w.timestamp);
+    const dateStr=d.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'});
+    const timeStr=d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    const row=document.createElement('div');
+    row.style.cssText='border-bottom:0.5px solid var(--border);padding:10px 0;display:flex;flex-direction:column;gap:5px';
+    row.innerHTML=`
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:16px">🏆</span>
+          <span style="font-size:13px;font-weight:500;color:var(--text)">${esc(w.title)}</span>
+        </div>
+        <button class="chip-secondary" style="font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openWinEdit(${realIdx})">Edit</button>
+      </div>
+      ${w.desc?`<div style="font-size:12px;color:var(--text2);padding-left:22px">${esc(w.desc)}</div>`:''}
+      ${w.reason?`<div style="font-size:12px;color:var(--text);padding:5px 10px;background:var(--surface2);border-radius:var(--radius-sm);border-left:2px solid var(--amber);margin-left:22px">${esc(w.reason)}</div>`:''}
+      <div style="font-size:10px;color:var(--text3);padding-left:22px">${dateStr} at ${timeStr}</div>
+    `;
+    el.appendChild(row);
+  });
+}
+
+function openWinEdit(idx){
+  editWinIdx=idx;
+  const w=wins[idx];if(!w)return;
+  document.getElementById('winEditTitle').value=w.title||'';
+  document.getElementById('winEditDesc').value=w.desc||'';
+  document.getElementById('winEditReason').value=w.reason||'';
+  document.getElementById('winEditModal').classList.add('open');
+}
+
+function saveWinEdit(){
+  if(editWinIdx<0)return;
+  wins[editWinIdx].title=document.getElementById('winEditTitle').value.trim()||wins[editWinIdx].title;
+  wins[editWinIdx].desc=document.getElementById('winEditDesc').value.trim();
+  wins[editWinIdx].reason=document.getElementById('winEditReason').value.trim();
+  save(SK.wins,wins);closeWinEdit();buildWins();
+}
+
+function deleteWin(){
+  if(editWinIdx<0)return;
+  if(!confirm('Delete this win? This cannot be undone.'))return;
+  wins.splice(editWinIdx,1);
+  save(SK.wins,wins);closeWinEdit();buildWins();
+}
+
+function closeWinEdit(){
+  editWinIdx=-1;
+  document.getElementById('winEditModal').classList.remove('open');
 }
 
 let editEntryIdx=-1;
@@ -1639,8 +1814,11 @@ function closeEditEntry(){
 function switchTab(which){
   document.getElementById('panelCharts').style.display=which==='charts'?'':'none';
   document.getElementById('panelHistory').style.display=which==='history'?'':'none';
+  document.getElementById('panelWins').style.display=which==='wins'?'':'none';
   document.getElementById('tabCharts').classList.toggle('active',which==='charts');
   document.getElementById('tabHistory').classList.toggle('active',which==='history');
+  document.getElementById('tabWins').classList.toggle('active',which==='wins');
+  if(which==='wins') buildWins();
 }
 
 function switchMainTab(which){
@@ -1672,6 +1850,7 @@ function initApp(){
     {id:3,text:'Journal entry',done:false,streak:1,lastDone:''}
   ]);
   history=load(SK.history,[]);
+  wins=load(SK.wins,[]);
   settings=load(SK.settings,{wStart:'09:00',wEnd:'17:00',pStart:'05:00',pEnd:'22:00',priv:false,reflOpen:false});
   refl=load(SK.refl,{grateful:'',accomplish:''});
   nextId=load(SK.nextid,{work:10,personal:10,habits:10});
