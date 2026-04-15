@@ -1369,9 +1369,16 @@ function closePresetPicker(){
 function playChime(){
   try{
     const ctx=getAudioCtx();
-    if(ctx.state==='suspended'){ctx.resume().then(()=>_startChimeLoop(ctx));}
-    else{_startChimeLoop(ctx);}
-  }catch(e){}
+    // Always attempt resume first regardless of stated state
+    const doPlay=()=>{
+      try{_startChimeLoop(ctx);}catch(e){console.warn('Chime play error:',e);}
+    };
+    if(ctx.state!=='running'){
+      ctx.resume().then(doPlay).catch(doPlay);
+    } else {
+      doPlay();
+    }
+  }catch(e){console.warn('Chime init error:',e);}
 }
 
 function _startChimeLoop(ctx){
@@ -1408,6 +1415,8 @@ function timerToggle(){
   else{
     if(timerLeft<=0){timerReset();return;}
     timerRunning=true;document.getElementById('timerBtn').textContent='Pause';
+    // Pre-warm audio context so it's ready when timer expires
+    try{const c=getAudioCtx();if(c.state==='suspended')c.resume();}catch(e){}
     drawPie();
     startDropAnim();
     timerIv=setInterval(()=>{
@@ -1415,7 +1424,6 @@ function timerToggle(){
       if(timerLeft<=0){
         clearInterval(timerIv);timerRunning=false;
         stopDropAnim();
-        document.getElementById('timerBtn').textContent='Start';
         playChime();
         const d=document.getElementById('timerDisp');
         d.style.color='var(--green)';
