@@ -769,6 +769,14 @@ let moodChart=null,dayChart=null;
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
+function linkify(text){
+  // First escape HTML, then convert URLs to clickable links
+  const escaped=esc(text);
+  return escaped.replace(/(https?:\/\/[^\s<>"]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;word-break:break-all" onclick="event.stopPropagation()">$1</a>'
+  );
+}
+
 function fmt12(timeStr){
   if(!timeStr)return '';
   const [hh,mm]=timeStr.split(':').map(Number);
@@ -850,7 +858,7 @@ function renderTasks(list,cid,countId){
         const cls=diffH<0?'overdue':diffH<24?'soon':'';
         dueBadge=`<span class="due-badge ${cls}">📅 ${fmtDue(t.dueDate,t.dueTime)}</span>`;
       }
-      const descHtml=t.desc?`<div class="task-desc">${esc(t.desc)}</div>`:'';
+      const descHtml=t.desc?`<div class="task-desc">${linkify(t.desc)}</div>`:'';
       d.style.flexDirection='column';d.style.alignItems='stretch';d.style.cursor='default';
       d.innerHTML=`<div style="display:flex;align-items:center;gap:6px">
         <button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="completeTask('${list}',${t.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0">Done</button>
