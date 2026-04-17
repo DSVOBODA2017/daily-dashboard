@@ -158,6 +158,8 @@
   .habit-item { background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; display: flex; align-items: center; gap: 6px; margin-bottom: 5px; transition: border-color 0.15s; }
   .habit-item:hover { border-color: var(--border2); }
   .habit-item.done { background: var(--green-bg); border-color: #86efac; }
+  .habit-item.skipped { background: var(--red-bg); border-color: #fca5a5; opacity:0.75; }
+  .streak-badge.broken { background: var(--red-bg); color: var(--red); border-color: #fca5a5; }
   .zero-state { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; min-height:120px; text-align:center; padding: 24px 16px; color: var(--text3); font-size: 12px; border: 1px dashed var(--border2); border-radius: var(--radius-sm); }
   .zero-state svg { margin-bottom:8px; opacity:0.35; }
   .streak-badge { font-size: 10px; background: var(--green-bg); color: var(--green); border: 0.5px solid #86efac; border-radius: 8px; padding: 2px 6px; white-space: nowrap; }
@@ -195,6 +197,11 @@
   .metric-lbl { font-size: 10px; color: var(--text2); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.4px; }
   .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .chart-panel { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px; border: 0.5px solid var(--border); }
+
+  /* PANEL INNER TABS */
+  .panel-inner-tab { flex:1; background:transparent; border:none; border-bottom:2.5px solid transparent; margin-bottom:-1.5px; padding:7px 12px; font-size:12px; font-weight:600; letter-spacing:0.4px; color:var(--text2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:color 0.15s,border-color 0.15s; text-transform:uppercase; }
+  .panel-inner-tab:hover { color:var(--text); }
+  .panel-inner-tab.active { color:var(--text); border-bottom-color:var(--text); }
 
   /* MAIN NAV TABS */
   .main-tab-bar { display: flex; gap: 6px; margin-bottom: 14px; padding: 5px; background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); }
@@ -335,6 +342,10 @@
             <div class="section-lbl">Greatest accomplishment today</div>
             <textarea id="accomplishTx" placeholder="Write here..." oninput="saveRefl()" style="font-size:12px;min-height:48px"></textarea>
           </div>
+          <div style="margin-bottom:8px">
+            <div class="section-lbl">Overall day</div>
+            <textarea id="overallTx" placeholder="How did the day really go? Give it some context..." oninput="saveRefl()" style="font-size:12px;min-height:48px"></textarea>
+          </div>
           <button class="chip-primary" style="width:100%;justify-content:center;display:flex" onclick="logEntry()" id="saveEntryBtn">Save today's entry</button>
         </div>
       </div>
@@ -395,16 +406,15 @@
               <span style="font-size:11px;font-weight:600;letter-spacing:0.4px;color:var(--text2)">SHOW:</span>
               <button class="chip on" id="tW" onclick="toggleCol('work')">Work Day</button>
               <button class="chip on" id="tP" onclick="toggleCol('personal')">Personal</button>
-              <button class="chip on" id="tH" onclick="toggleCol('habits')">Daily Habits</button>
             </div>
           </div>
-          <div class="lists-grid" id="listsGrid">
+          <div class="lists-grid" id="listsGrid" data-cols="2">
           <!-- Work -->
-          <div id="colWork" class="panel">
+          <div id="colWork" class="panel" style="display:flex;flex-direction:column">
             <div class="panel-header">
               <span class="panel-title">WORK DAY</span>
-              <div class="row"><span class="pill" id="cWork">0 tasks</span><button class="chip-primary" onclick="openAdd('work')">+ Add</button></div>
             </div>
+            <!-- Progress bar -->
             <div style="margin-bottom:10px">
               <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:4px">
                 <span style="font-size:10px;font-weight:600;letter-spacing:0.4px;color:var(--text3);text-transform:uppercase">Work Progress</span>
@@ -420,14 +430,33 @@
                 <span style="font-size:10px;color:var(--text3)" id="pLeft">—</span>
               </div>
             </div>
-            <div id="workList" class="task-list-container"></div>
+            <!-- Inner tab bar -->
+            <div style="display:flex;border-bottom:1.5px solid var(--border2);margin-bottom:10px">
+              <button class="panel-inner-tab active" id="workTabTodo" onclick="switchPanelTab('work','todo')">To Do <span class="pill" id="cWork" style="margin-left:4px">0</span></button>
+              <button class="panel-inner-tab" id="workTabHabits" onclick="switchPanelTab('work','habits')">Habits <span class="pill" id="workHabitCount" style="margin-left:4px">0</span></button>
+            </div>
+            <!-- To Do content -->
+            <div id="workPanelTodo" style="flex:1;display:flex;flex-direction:column">
+              <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+                <button class="chip-primary" onclick="openAdd('work')" style="font-size:11px">+ Add</button>
+              </div>
+              <div id="workList" class="task-list-container" style="flex:1"></div>
+            </div>
+            <!-- Habits content -->
+            <div id="workPanelHabits" style="display:none;flex:1;flex-direction:column">
+              <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+                <button class="chip on" id="workHabitToggleBtn" onclick="toggleCompletedHabits('work')" style="font-size:11px">Outstanding</button>
+                <button class="chip-primary" onclick="openAdd('habits','work')" style="font-size:11px">+ Add</button>
+              </div>
+              <div id="workHabitList" class="task-list-container" style="flex:1"></div>
+            </div>
           </div>
           <!-- Personal -->
-          <div id="colPersonal" class="panel">
+          <div id="colPersonal" class="panel" style="display:flex;flex-direction:column">
             <div class="panel-header">
               <span class="panel-title">PERSONAL</span>
-              <div class="row"><span class="pill" id="cPersonal">0 tasks</span><button class="chip-primary" onclick="openAdd('personal')">+ Add</button></div>
             </div>
+            <!-- Progress bar -->
             <div style="margin-bottom:10px">
               <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:4px">
                 <span style="font-size:10px;font-weight:600;letter-spacing:0.4px;color:var(--text3);text-transform:uppercase">Personal Progress</span>
@@ -443,19 +472,26 @@
                 <span style="font-size:10px;color:var(--text3)" id="ppLeft">—</span>
               </div>
             </div>
-            <div id="personalList" class="task-list-container"></div>
-          </div>
-          <!-- Habits -->
-          <div id="colHabits" class="panel">
-            <div class="panel-header">
-              <span class="panel-title">DAILY HABITS</span>
-              <div class="row">
-                <span class="pill" id="habitCount">0 done</span>
-                <button class="chip on" id="habitToggleBtn" onclick="toggleCompletedHabits()" title="Toggle completed habits">Outstanding</button>
-                <button class="chip-primary" onclick="openAdd('habits')">+ Add</button>
-              </div>
+            <!-- Inner tab bar -->
+            <div style="display:flex;border-bottom:1.5px solid var(--border2);margin-bottom:10px">
+              <button class="panel-inner-tab active" id="personalTabTodo" onclick="switchPanelTab('personal','todo')">To Do <span class="pill" id="cPersonal" style="margin-left:4px">0</span></button>
+              <button class="panel-inner-tab" id="personalTabHabits" onclick="switchPanelTab('personal','habits')">Habits <span class="pill" id="personalHabitCount" style="margin-left:4px">0</span></button>
             </div>
-            <div id="habitList" class="task-list-container"></div>
+            <!-- To Do content -->
+            <div id="personalPanelTodo" style="flex:1;display:flex;flex-direction:column">
+              <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+                <button class="chip-primary" onclick="openAdd('personal')" style="font-size:11px">+ Add</button>
+              </div>
+              <div id="personalList" class="task-list-container" style="flex:1"></div>
+            </div>
+            <!-- Habits content -->
+            <div id="personalPanelHabits" style="display:none;flex:1;flex-direction:column">
+              <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+                <button class="chip on" id="personalHabitToggleBtn" onclick="toggleCompletedHabits('personal')" style="font-size:11px">Outstanding</button>
+                <button class="chip-primary" onclick="openAdd('habits','personal')" style="font-size:11px">+ Add</button>
+              </div>
+              <div id="personalHabitList" class="task-list-container" style="flex:1"></div>
+            </div>
           </div>
           </div>
         </div>
@@ -540,7 +576,9 @@
     </div>
     <div style="margin-bottom:14px">
       <div class="section-lbl" style="margin-bottom:4px">Greatest accomplishment</div>
-      <textarea id="eeAccomplish" style="width:100%;min-height:52px;resize:vertical" placeholder="Write here..."></textarea>
+      <textarea id="eeAccomplish" style="width:100%;min-height:52px;resize:vertical;margin-bottom:10px" placeholder="Write here..."></textarea>
+      <div class="section-lbl" style="margin-bottom:4px">Overall day</div>
+      <textarea id="eeOverall" style="width:100%;min-height:52px;resize:vertical" placeholder="Context, thoughts, how it really went..."></textarea>
     </div>
     <div class="row" style="justify-content:space-between;gap:7px">
       <button class="chip-secondary" style="color:var(--red);border-color:var(--red)" onclick="deleteEntry()">Delete entry</button>
@@ -758,11 +796,12 @@ let tasks={work:[],personal:[]};
 let habits=[];
 let history=[];
 let settings={wStart:'09:00',wEnd:'17:00',pStart:'05:00',pEnd:'22:00',priv:false,reflOpen:false};
-let refl={grateful:'',accomplish:''};
+let refl={grateful:'',accomplish:'',overall:''};
 let nextId={work:10,personal:10,habits:10};
 let vis={work:true,personal:true,habits:true};
 let wins=[];
-let showCompletedHabits=false;
+let showCompletedHabits={work:false,personal:false};
+
 let addTarget='',editTarget={list:'',id:0};
 let timerTotal=25*60,timerLeft=25*60,timerRunning=false,timerIv=null;
 let moodChart=null,dayChart=null;
@@ -907,50 +946,70 @@ function renderTasks(list,cid,countId){
   document.getElementById(countId).textContent=`${tasks[list].length} tasks · ${top3.length} ★`;
 }
 
-function toggleCompletedHabits(){
-  showCompletedHabits=!showCompletedHabits;
-  const btn=document.getElementById('habitToggleBtn');
-  btn.textContent=showCompletedHabits?'Completed':'Outstanding';
-  btn.className=showCompletedHabits?'chip on':'chip';
-  renderHabits();
+function toggleCompletedHabits(group){
+  group=group||'personal';
+  showCompletedHabits[group]=!showCompletedHabits[group];
+  const btn=document.getElementById(group+'HabitToggleBtn');
+  if(btn){
+    btn.textContent=showCompletedHabits[group]?'Done & Skipped':'Outstanding';
+    btn.className=showCompletedHabits[group]?'chip on':'chip';
+  }
+  renderHabitGroup(group);
 }
 
 function renderHabits(){
-  const el=document.getElementById('habitList');el.innerHTML='';
-  const doneCount=habits.filter(h=>h.done).length;
-  const countEl=document.getElementById('habitCount');
-  if(countEl) countEl.textContent=`${doneCount}/${habits.length} done`;
+  ['work','personal'].forEach(group=>renderHabitGroup(group));
+}
 
-  // Filter by today's day of week, then by completion toggle
+function renderHabitGroup(group){
+  const el=document.getElementById(group+'HabitList');
+  if(!el)return;
+  el.innerHTML='';
   const todayDow=new Date().getDay();
-  const visible=habits.filter(h=>{
+  const groupHabits=habits.filter(h=>(h.group||'personal')===group);
+  const doneCount=groupHabits.filter(h=>h.done||h.skipped).length;
+  const countEl=document.getElementById(group+'HabitCount');
+  if(countEl) countEl.textContent=`${doneCount}/${groupHabits.length} done`;
+  const showDone=showCompletedHabits[group];
+  const visible=groupHabits.filter(h=>{
     const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
     if(!activeDays.includes(todayDow))return false;
-    return showCompletedHabits?h.done:!h.done;
+    if(showDone) return h.done||h.skipped;
+    return !h.done&&!h.skipped;
   });
 
   visible.forEach(h=>{
     const d=document.createElement('div');
-    d.className='habit-item'+(h.done?' done':'');
+    d.className='habit-item'+(h.done?' done':h.skipped?' skipped':'');
     const activeDays2=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
     const isAllDays=activeDays2.length===7;
     const dayLabels=['Su','Mo','Tu','We','Th','Fr','Sa'];
     const dayPills=isAllDays?'':activeDays2.map(d=>`<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:var(--blue-bg);color:var(--blue);border:0.5px solid var(--blue)">${dayLabels[d]}</span>`).join('');
     d.style.flexDirection='column';d.style.alignItems='stretch';
-    d.innerHTML=`<div style="display:flex;align-items:center;gap:6px"><button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit(${h.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0">${h.done?'Undo':'Done'}</button><span style="flex:1;font-size:14px;color:var(--text);${h.done?'text-decoration:line-through;opacity:0.6':''}">${esc(h.text)}</span><span class="streak-badge">🔥${h.streak}d</span><div class="habit-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('habits',${h.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit(${h.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>`;
+    const streakClass=h.streak===0?'streak-badge broken':'streak-badge';
+    const streakLabel=h.streak===0?'💔 0d':`🔥${h.streak}d`;
+    let actionBtns='';
+    if(h.done){
+      actionBtns=`<button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit(${h.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0">Undo</button>`;
+    } else if(h.skipped){
+      actionBtns=`<button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="unskipHabit(${h.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0;color:var(--red);border-color:var(--red)">Undo Skip</button>`;
+    } else {
+      actionBtns=`<button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit(${h.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0">Done</button><button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="skipHabit(${h.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0;color:var(--red);border-color:var(--red)">Skip</button>`;
+    }
+    d.innerHTML=`<div style="display:flex;align-items:center;gap:6px">${actionBtns}<span style="flex:1;font-size:14px;color:var(--text);${h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':''}">${esc(h.text)}</span><span class="${streakClass}">${streakLabel}</span><div class="habit-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('habits',${h.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit(${h.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>`;
     el.appendChild(d);
   });
 
   // Zero states
-  if(habits.length===0){
+  if(groupHabits.length===0){
     const z=document.createElement('div');z.className='zero-state';
-    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>No habits yet — add one above`;
+    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>No ${group} habits yet — click + Add`;
     el.appendChild(z);
-  } else if(visible.length===0&&!showCompletedHabits){
+  } else if(visible.length===0&&!showDone){
     const z=document.createElement('div');z.className='zero-state';
-    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/></svg>All habits done for today!`;
+    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/></svg>All ${group} habits done!`;
     el.appendChild(z);
-  } else if(visible.length===0&&showCompletedHabits){
+  } else if(visible.length===0&&showDone){
     const z=document.createElement('div');z.className='zero-state';
     z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>No completed habits yet`;
     el.appendChild(z);
@@ -1032,15 +1091,38 @@ function toggleStar(list,id){
 function toggleHabit(id){
   const h=habits.find(h=>h.id===id);if(!h)return;
   h.done=!h.done;
-  if(h.done){if(h.lastDone!==todayKey){h.streak++;h.lastDone=todayKey;}}
-  else{if(h.lastDone===todayKey){h.streak=Math.max(0,h.streak-1);h.lastDone='';}}
+  h.skipped=false;
+  if(h.done){
+    if(h.lastDone!==todayKey){h.streak++;h.lastDone=todayKey;}
+  } else {
+    if(h.lastDone===todayKey){h.streak=Math.max(0,h.streak-1);h.lastDone='';}
+  }
+  save(SK.habits,habits);renderHabits();
+}
+
+function skipHabit(id){
+  const h=habits.find(h=>h.id===id);if(!h)return;
+  h.skipped=true;
+  h.done=false;
+  // Break the streak — a skip is a missed day
+  h.streak=0;
+  h.lastDone='';
+  save(SK.habits,habits);renderHabits();
+}
+
+function unskipHabit(id){
+  const h=habits.find(h=>h.id===id);if(!h)return;
+  h.skipped=false;
+  // Streak stays at 0 after an unskip — they didn't do it
   save(SK.habits,habits);renderHabits();
 }
 function delHabit(id){habits=habits.filter(h=>h.id!==id);save(SK.habits,habits);renderHabits();}
 
 function openAdd(list){
   if(list==='habits'){
-    document.getElementById('addModalTitle').textContent='Add habit';
+    const grp=arguments[1]||'personal';
+    document.getElementById('addModal').dataset.habitGroup=grp;
+    document.getElementById('addModalTitle').textContent=`Add ${grp==='work'?'Work':'Personal'} Habit`;
     document.getElementById('addInput').value='';
     document.getElementById('addDaysRow').style.display='';
     setDaysChecked('addDaysChecks',[0,1,2,3,4,5,6]);
@@ -1072,9 +1154,10 @@ function handleInlineAddKey(e,list){
 function confirmAdd(){
   const v=document.getElementById('addInput').value.trim();if(!v)return;
   const days=getDaysChecked('addDaysChecks');
-  habits.push({id:nextId.habits++,text:v,done:false,streak:0,lastDone:'',days});
+  const group=document.getElementById('addModal').dataset.habitGroup||'personal';
+  habits.push({id:nextId.habits++,text:v,done:false,streak:0,lastDone:'',days,group});
   save(SK.habits,habits);save(SK.nextid,nextId);
-  closeModal('add');render();
+  closeModal('add');renderHabits();
 }
 
 function getDaysChecked(containerId){
@@ -1099,7 +1182,8 @@ function openEdit(list,id){
     const src=habits.find(h=>h.id===id);if(!src)return;
     editTarget={list,id};
     document.getElementById('editInput').value=src.text;
-    document.getElementById('editModalTitle').textContent='Edit habit';
+    document.getElementById('editModalTitle').textContent=`Edit ${(src.group||'personal')==='work'?'Work':'Personal'} Habit`;
+    document.getElementById('editModal').dataset.habitGroup=src.group||'personal';
     const streakRow=document.getElementById('editStreakRow');
     streakRow.style.display='';
     document.getElementById('editStreakInput').value=src.streak||0;
@@ -1136,16 +1220,18 @@ function confirmEdit(){
     const s=parseInt(document.getElementById('editStreakInput').value);
     h.streak=isNaN(s)?h.streak:Math.max(0,s);
     h.days=getDaysChecked('editDaysChecks');
+    h.group=document.getElementById('editModal').dataset.habitGroup||h.group||'personal';
   }
   save(SK.habits,habits);
-  closeModal('edit');render();
+  closeModal('edit');renderHabits();
 }
 function closeModal(w){document.getElementById(w+'Modal').classList.remove('open');}
 
 function toggleCol(which){
   vis[which]=!vis[which];
-  const m={work:'colWork',personal:'colPersonal',habits:'colHabits'};
-  const t={work:'tW',personal:'tP',habits:'tH'};
+  const m={work:'colWork',personal:'colPersonal'};
+  const t={work:'tW',personal:'tP'};
+  if(!m[which])return;
   document.getElementById(m[which]).style.display=vis[which]?'':'none';
   document.getElementById(t[which]).classList.toggle('on',vis[which]);
   const count=Object.values(vis).filter(Boolean).length;
@@ -1610,7 +1696,7 @@ function updateRatingEmoji(){
   if(dEl) dEl.textContent=dayEmojis[dVal]||'😐';
 }
 
-function saveRefl(){refl.grateful=document.getElementById('gratefulTx').value;refl.accomplish=document.getElementById('accomplishTx').value;save(SK.refl,refl);}
+function saveRefl(){refl.grateful=document.getElementById('gratefulTx').value;refl.accomplish=document.getElementById('accomplishTx').value;refl.overall=(document.getElementById('overallTx')?.value||'');save(SK.refl,refl);}
 function toggleRefl(){
   const wrap=document.getElementById('reflWrap');
   const chevron=document.getElementById('reflChevron');
@@ -1629,7 +1715,7 @@ function logEntry(){
   const mood=+(document.querySelector('input[name=mood]:checked')?.value||0);
   const dayR=+(document.querySelector('input[name=dayR]:checked')?.value||0);
   if(!mood||!dayR){alert('Please set your mood and day rating before saving.');return;}
-  const entry={date:todayKey,mood,day:dayR,grateful:refl.grateful,accomplish:refl.accomplish,timestamp:Date.now()};
+  const entry={date:todayKey,mood,day:dayR,grateful:refl.grateful,accomplish:refl.accomplish,overall:refl.overall||'',timestamp:Date.now()};
   const idx=history.findIndex(h=>h.date===todayKey);
   if(idx>=0)history[idx]=entry;else history.push(entry);
   history.sort((a,b)=>a.date.localeCompare(b.date));
@@ -1640,7 +1726,9 @@ function logEntry(){
   document.querySelectorAll('input[name=dayR]').forEach(r=>r.checked=false);
   document.getElementById('gratefulTx').value='';
   document.getElementById('accomplishTx').value='';
-  refl={grateful:'',accomplish:''};
+  const overallEl=document.getElementById('overallTx');
+  if(overallEl)overallEl.value='';
+  refl={grateful:'',accomplish:'',overall:''};
   save(SK.refl,refl);
   save(SK.mood,null);
   save(SK.day,null);
@@ -1765,6 +1853,7 @@ function buildHistory(){
         <button class="chip-secondary" style="margin-left:auto;font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openEditEntry(${realIdx},event)">Edit</button>
       </div>
       ${h.accomplish?`<div style="font-size:11px;color:var(--text2);padding-left:4px">🏅 ${esc(h.accomplish.slice(0,60))}${h.accomplish.length>60?'…':''}</div>`:''}
+      ${h.overall?`<div style="font-size:11px;color:var(--text2);padding-left:4px;font-style:italic">💬 ${esc(h.overall.slice(0,80))}${h.overall.length>80?'…':''}</div>`:''}
     `;
     el.appendChild(row);
   });
@@ -1782,6 +1871,7 @@ function openEditEntry(idx,e){
   document.querySelectorAll('input[name=eeDay]').forEach(r=>{r.checked=+r.value===h.day;});
   document.getElementById('eeGrateful').value=h.grateful||'';
   document.getElementById('eeAccomplish').value=h.accomplish||'';
+  document.getElementById('eeOverall').value=h.overall||'';
   document.getElementById('editEntryModal').classList.add('open');
 }
 
@@ -1805,6 +1895,7 @@ function saveEditEntry(){
     mood,day,
     grateful:document.getElementById('eeGrateful').value,
     accomplish:document.getElementById('eeAccomplish').value,
+    overall:document.getElementById('eeOverall').value,
     timestamp:ts
   };
   history.sort((a,b)=>a.date.localeCompare(b.date));
@@ -1825,6 +1916,18 @@ function deleteEntry(){
 function closeEditEntry(){
   editEntryIdx=-1;
   document.getElementById('editEntryModal').classList.remove('open');
+}
+
+function switchPanelTab(group, tab){
+  const todoPanel=document.getElementById(group+'PanelTodo');
+  const habitPanel=document.getElementById(group+'PanelHabits');
+  const todoBtn=document.getElementById(group+'TabTodo');
+  const habitBtn=document.getElementById(group+'TabHabits');
+  if(!todoPanel||!habitPanel)return;
+  todoPanel.style.display=tab==='todo'?'flex':'none';
+  habitPanel.style.display=tab==='habits'?'flex':'none';
+  todoBtn.classList.toggle('active',tab==='todo');
+  habitBtn.classList.toggle('active',tab==='habits');
 }
 
 function switchTab(which){
@@ -1868,21 +1971,36 @@ function initApp(){
   history=load(SK.history,[]);
   wins=load(SK.wins,[]);
   settings=load(SK.settings,{wStart:'09:00',wEnd:'17:00',pStart:'05:00',pEnd:'22:00',priv:false,reflOpen:false});
-  refl=load(SK.refl,{grateful:'',accomplish:''});
+  refl=load(SK.refl,{grateful:'',accomplish:'',overall:''});
   nextId=load(SK.nextid,{work:10,personal:10,habits:10});
 
   // ── New-day reset ──────────────────────────────────────────
   const lastDate=load(SK.lastDate,null);
   const isNewDay=lastDate!==todayKey;
   if(isNewDay){
-    // Reset habits to unchecked — keep streaks intact
-    habits=habits.map(h=>({...h,done:false}));
+    // New day: check for missed habits (not done AND not skipped) — break their streak
+    // Also reset done/skipped state for the new day
+    habits=habits.map(h=>{
+      const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
+      // Get yesterday's day of week
+      const yesterday=new Date(todayKey);yesterday.setDate(yesterday.getDate()-1);
+      const yesterdayDow=yesterday.getDay();
+      // If habit was active yesterday and was neither done nor skipped, break streak
+      const wasActiveyesterday=activeDays.includes(yesterdayDow);  // keep group
+      const wasMissed=wasActiveyesterday&&!h.done&&!h.skipped&&h.lastDone!==yesterday.toISOString().slice(0,10);
+      return {
+        ...h,
+        done:false,
+        skipped:false,
+        streak:wasMissed?0:h.streak
+      };
+    });
     save(SK.habits,habits);
     // Clear mood & day radio selection
     save(SK.mood,null);
     save(SK.day,null);
     // Clear daily reflection form fields (history entry is preserved)
-    refl={grateful:'',accomplish:''};
+    refl={grateful:'',accomplish:'',overall:''};
     save(SK.refl,refl);
     // Record today as last active date
     save(SK.lastDate,todayKey);
@@ -1909,6 +2027,8 @@ function initApp(){
   }
   document.getElementById('gratefulTx').value=refl.grateful||'';
   document.getElementById('accomplishTx').value=refl.accomplish||'';
+  const overallTxEl=document.getElementById('overallTx');
+  if(overallTxEl)overallTxEl.value=refl.overall||'';
 
   const savedTheme=load(SK.theme,'light');
   if(savedTheme==='dark'){
