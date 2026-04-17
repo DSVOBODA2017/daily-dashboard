@@ -158,6 +158,12 @@
   .habit-item { background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; display: flex; align-items: center; gap: 6px; margin-bottom: 5px; transition: border-color 0.15s; }
   .habit-item:hover { border-color: var(--border2); }
   .habit-item.done { background: var(--green-bg); border-color: #86efac; }
+  .habit-steps { padding:6px 0 2px 12px; display:flex; flex-direction:column; gap:4px; border-left:2px solid var(--border2); margin:6px 0 2px 4px; }
+  .habit-step { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text2); }
+  .habit-step.done-step { color:var(--text3); text-decoration:line-through; }
+  .habit-step input[type=checkbox] { accent-color:var(--green); width:13px; height:13px; cursor:pointer; flex-shrink:0; }
+  .step-progress { font-size:10px; font-weight:600; color:var(--text3); background:var(--surface2); border:0.5px solid var(--border); border-radius:8px; padding:1px 6px; white-space:nowrap; }
+  .expand-btn { background:none; border:none; cursor:pointer; color:var(--text3); font-size:11px; padding:0 2px; line-height:1; transition:transform 0.15s; flex-shrink:0; }
   .habit-item.skipped { background: var(--red-bg); border-color: #fca5a5; opacity:0.75; }
   .streak-badge.broken { background: var(--red-bg); color: var(--red); border-color: #fca5a5; }
   .zero-state { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; min-height:120px; text-align:center; padding: 24px 16px; color: var(--text3); font-size: 12px; border: 1px dashed var(--border2); border-radius: var(--radius-sm); }
@@ -679,8 +685,17 @@
           <label style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer"><input type="checkbox" value="6" style="accent-color:var(--blue);cursor:pointer"> Sat</label>
         </div>
       </div>
+      <!-- Nested Steps -->
+      <div style="margin-bottom:4px">
+        <div class="section-lbl" style="margin-bottom:6px">Nested Steps <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+        <div id="editStepsList" style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px"></div>
+        <div style="display:flex;gap:5px">
+          <input type="text" id="editStepInput" placeholder="Add a step..." style="flex:1;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();addEditStep();}">
+          <button class="chip-primary" onclick="addEditStep()" style="font-size:11px;flex-shrink:0">+ Step</button>
+        </div>
+      </div>
     </div>
-    <div class="row" style="justify-content:flex-end;gap:7px">
+    <div class="row" style="justify-content:flex-end;gap:7px;margin-top:12px">
       <button class="chip-secondary" onclick="closeModal('edit')">Cancel</button>
       <button class="chip-primary" onclick="confirmEdit()">Save</button>
     </div>
@@ -996,7 +1011,13 @@ function renderHabitGroup(group){
     } else {
       actionBtns=`<button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit(${h.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0">Done</button><button class="chip-secondary" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="skipHabit(${h.id})" style="font-size:11px;padding:3px 10px;flex-shrink:0;color:var(--red);border-color:var(--red)">Skip</button>`;
     }
-    d.innerHTML=`<div style="display:flex;align-items:center;gap:6px">${actionBtns}<span style="flex:1;font-size:14px;color:var(--text);${h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':''}">${esc(h.text)}</span><span class="${streakClass}">${streakLabel}</span><div class="habit-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('habits',${h.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit(${h.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div>`;
+    const hasSteps=h.steps&&h.steps.length>0;
+    const stepsDone=hasSteps?h.steps.filter(s=>s.done).length:0;
+    const stepsTotal=hasSteps?h.steps.length:0;
+    const stepsProg=hasSteps?`<span class="step-progress">${stepsDone}/${stepsTotal}</span>`:'';
+    const expandBtn=hasSteps?`<button class="expand-btn" id="expandBtn_${h.id}" onclick="toggleSteps(${h.id})" style="transform:${h._expanded?'rotate(90deg)':'rotate(0deg)'}">▶</button>`:'';
+    const stepsHtml=hasSteps&&h._expanded?`<div class="habit-steps">${h.steps.map((s,si)=>`<label class="habit-step${s.done?' done-step':''}"><input type="checkbox" ${s.done?'checked':''} onchange="toggleStep(${h.id},${si})">${esc(s.text)}</label>`).join('')}</div>`:'';
+    d.innerHTML=`<div style="display:flex;align-items:center;gap:6px">${expandBtn}${actionBtns}<span style="flex:1;font-size:14px;color:var(--text);${h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':''}">${esc(h.text)}</span>${stepsProg}<span class="${streakClass}">${streakLabel}</span><div class="habit-actions"><button class="icon-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('habits',${h.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="icon-btn del" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit(${h.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></div></div>${stepsHtml}`;
     el.appendChild(d);
   });
 
@@ -1113,8 +1134,54 @@ function skipHabit(id){
 function unskipHabit(id){
   const h=habits.find(h=>h.id===id);if(!h)return;
   h.skipped=false;
-  // Streak stays at 0 after an unskip — they didn't do it
   save(SK.habits,habits);renderHabits();
+}
+
+function toggleSteps(id){
+  const h=habits.find(h=>h.id===id);if(!h)return;
+  h._expanded=!h._expanded;
+  renderHabits();
+}
+
+function toggleStep(habitId,stepIdx){
+  const h=habits.find(h=>h.id===habitId);if(!h||!h.steps)return;
+  h.steps[stepIdx].done=!h.steps[stepIdx].done;
+  // Auto-complete parent if all steps done
+  const allDone=h.steps.every(s=>s.done);
+  if(allDone&&!h.done){
+    h.done=true;
+    if(h.lastDone!==todayKey){h.streak++;h.lastDone=todayKey;}
+  }
+  // If un-checking a step, un-complete parent
+  if(!h.steps[stepIdx].done&&h.done){
+    h.done=false;
+    if(h.lastDone===todayKey){h.streak=Math.max(0,h.streak-1);h.lastDone='';}
+  }
+  save(SK.habits,habits);renderHabits();
+}
+
+// Edit modal step management
+let _editSteps=[];
+function renderEditSteps(){
+  const el=document.getElementById('editStepsList');if(!el)return;
+  el.innerHTML='';
+  _editSteps.forEach((s,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:5px';
+    row.innerHTML=`<span style="flex:1;font-size:12px;color:var(--text);background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--radius-sm);padding:4px 8px">${esc(s.text)}</span><button class="icon-btn del" onclick="removeEditStep(${i})" title="Remove step"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`;
+    el.appendChild(row);
+  });
+}
+function addEditStep(){
+  const inp=document.getElementById('editStepInput');
+  const v=inp?inp.value.trim():'';if(!v)return;
+  _editSteps.push({text:v,done:false});
+  inp.value='';
+  renderEditSteps();
+}
+function removeEditStep(i){
+  _editSteps.splice(i,1);
+  renderEditSteps();
 }
 function delHabit(id){habits=habits.filter(h=>h.id!==id);save(SK.habits,habits);renderHabits();}
 
@@ -1188,6 +1255,8 @@ function openEdit(list,id){
     streakRow.style.display='';
     document.getElementById('editStreakInput').value=src.streak||0;
     setDaysChecked('editDaysChecks',src.days||[0,1,2,3,4,5,6]);
+    _editSteps=(src.steps||[]).map(s=>({...s}));
+    renderEditSteps();
     document.getElementById('editModal').classList.add('open');
     setTimeout(()=>document.getElementById('editInput').focus(),60);
     return;
@@ -1221,6 +1290,8 @@ function confirmEdit(){
     h.streak=isNaN(s)?h.streak:Math.max(0,s);
     h.days=getDaysChecked('editDaysChecks');
     h.group=document.getElementById('editModal').dataset.habitGroup||h.group||'personal';
+    // Preserve done state of existing steps, add new ones
+    h.steps=_editSteps.map(s=>({text:s.text,done:s.done||false}));
   }
   save(SK.habits,habits);
   closeModal('edit');renderHabits();
@@ -1988,11 +2059,15 @@ function initApp(){
       // If habit was active yesterday and was neither done nor skipped, break streak
       const wasActiveyesterday=activeDays.includes(yesterdayDow);  // keep group
       const wasMissed=wasActiveyesterday&&!h.done&&!h.skipped&&h.lastDone!==yesterday.toISOString().slice(0,10);
+      // Also reset step done states for new day
+      const resetSteps=(h.steps||[]).map(s=>({...s,done:false}));
       return {
         ...h,
         done:false,
         skipped:false,
-        streak:wasMissed?0:h.streak
+        streak:wasMissed?0:h.streak,
+        steps:resetSteps,
+        _expanded:false
       };
     });
     save(SK.habits,habits);
