@@ -1838,6 +1838,66 @@ function buildCharts(data){
 // Wins
 let editWinIdx=-1;
 
+// ── Grouping helpers ───────────────────────────────────────
+function monthKey(dateStr){
+  const d=new Date(dateStr+'T00:00:00');
+  return d.toLocaleDateString([],{year:'numeric',month:'long'});
+}
+function weekLabel(ts){
+  const d=new Date(ts);
+  // Find Monday of this week
+  const day=d.getDay();
+  const diff=d.getDate()-(day===0?6:day-1);
+  const mon=new Date(d);mon.setDate(diff);mon.setHours(0,0,0,0);
+  const fri=new Date(mon);fri.setDate(mon.getDate()+4);
+  const fmt=dt=>dt.toLocaleDateString([],{month:'short',day:'numeric'});
+  return `Week of ${fmt(mon)} – ${fmt(fri)}`;
+}
+function weekSortKey(ts){
+  const d=new Date(ts);
+  const day=d.getDay();
+  const diff=d.getDate()-(day===0?6:day-1);
+  const mon=new Date(d);mon.setDate(diff);mon.setHours(0,0,0,0);
+  return mon.getTime();
+}
+function makeGroupHeader(label, count, id, defaultOpen){
+  const wrap=document.createElement('div');
+  wrap.style.cssText='margin-bottom:4px';
+  const btn=document.createElement('button');
+  btn.style.cssText='display:flex;align-items:center;gap:7px;background:none;border:none;cursor:pointer;width:100%;padding:8px 0 5px;font-family:"DM Sans",sans-serif;border-bottom:1.5px solid var(--border2)';
+  btn.innerHTML=`<span id="chev_${id}" style="font-size:10px;color:var(--text3);transition:transform 0.2s;transform:${defaultOpen?'rotate(90deg)':'rotate(0deg)'}"">▶</span><span style="font-size:12px;font-weight:600;color:var(--text);text-transform:uppercase;letter-spacing:0.5px">${label}</span><span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:auto">${count} ${count===1?'entry':'entries'}</span>`;
+  const body=document.createElement('div');
+  body.id='grp_'+id;
+  body.style.display=defaultOpen?'block':'none';
+  btn.onclick=()=>{
+    const open=body.style.display==='none';
+    body.style.display=open?'block':'none';
+    document.getElementById('chev_'+id).style.transform=open?'rotate(90deg)':'rotate(0deg)';
+  };
+  wrap.appendChild(btn);
+  wrap.appendChild(body);
+  return {wrap,body};
+}
+function makeWeekHeader(label, count, id, defaultOpen){
+  const wrap=document.createElement('div');
+  wrap.style.cssText='margin:6px 0 2px';
+  const btn=document.createElement('button');
+  btn.style.cssText='display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;width:100%;padding:5px 0 4px;font-family:"DM Sans",sans-serif;border-bottom:0.5px solid var(--border)';
+  btn.innerHTML=`<span id="wchev_${id}" style="font-size:9px;color:var(--text3);transition:transform 0.2s;transform:${defaultOpen?'rotate(90deg)':'rotate(0deg)'}"">▶</span><span style="font-size:11px;font-weight:600;color:var(--text2);letter-spacing:0.3px">${label}</span><span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:auto">${count} win${count===1?'':'s'}</span>`;
+  const body=document.createElement('div');
+  body.id='wgrp_'+id;
+  body.style.display=defaultOpen?'block':'none';
+  btn.onclick=()=>{
+    const open=body.style.display==='none';
+    body.style.display=open?'block':'none';
+    document.getElementById('wchev_'+id).style.transform=open?'rotate(90deg)':'rotate(0deg)';
+  };
+  wrap.appendChild(btn);
+  wrap.appendChild(body);
+  return {wrap,body};
+}
+// ────────────────────────────────────────────────────────────
+
 function buildWins(){
   wins=load(SK.wins,[]);
   const el=document.getElementById('winsRows');
@@ -1847,26 +1907,55 @@ function buildWins(){
     return;
   }
   el.innerHTML='';
-  [...wins].sort((a,b)=>b.timestamp-a.timestamp).forEach((w,i)=>{
-    const realIdx=wins.findIndex(x=>x.id===w.id);
-    const d=new Date(w.timestamp);
-    const dateStr=d.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'});
-    const timeStr=d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-    const row=document.createElement('div');
-    row.style.cssText='border-bottom:0.5px solid var(--border);padding:10px 0;display:flex;flex-direction:column;gap:5px';
-    row.innerHTML=`
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:16px">🏆</span>
-          <span style="font-size:13px;font-weight:500;color:var(--text)">${esc(w.title)}</span>
-        </div>
-        <button class="chip-secondary" style="font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openWinEdit(${realIdx})">Edit</button>
-      </div>
-      ${w.desc?`<div style="font-size:12px;color:var(--text2);padding-left:22px">${esc(w.desc)}</div>`:''}
-      ${w.reason?`<div style="font-size:12px;color:var(--text);padding:5px 10px;background:var(--surface2);border-radius:var(--radius-sm);border-left:2px solid var(--amber);margin-left:22px">${esc(w.reason)}</div>`:''}
-      <div style="font-size:10px;color:var(--text3);padding-left:22px">${dateStr} at ${timeStr}</div>
-    `;
-    el.appendChild(row);
+  const sorted=[...wins].sort((a,b)=>b.timestamp-a.timestamp);
+
+  // Group by month, then by week
+  const byMonth=new Map();
+  sorted.forEach(w=>{
+    const mk=monthKey(new Date(w.timestamp).toISOString().slice(0,10));
+    if(!byMonth.has(mk))byMonth.set(mk,[]);
+    byMonth.get(mk).push(w);
+  });
+
+  let mIdx=0;
+  byMonth.forEach((mWins,month)=>{
+    const {wrap:mWrap,body:mBody}=makeGroupHeader(month,mWins.length,'wm'+mIdx,mIdx===0);
+    // Within month, group by week
+    const byWeek=new Map();
+    mWins.forEach(w=>{
+      const wk=weekSortKey(w.timestamp);
+      if(!byWeek.has(wk))byWeek.set(wk,[]);
+      byWeek.get(wk).push(w);
+    });
+    let wIdx=0;
+    byWeek.forEach((wWins,weekTs)=>{
+      const wLabel=weekLabel(weekTs);
+      const {wrap:wWrap,body:wBody}=makeWeekHeader(wLabel,wWins.length,`wm${mIdx}w${wIdx}`,mIdx===0&&wIdx===0);
+      wWins.forEach(w=>{
+        const realIdx=wins.findIndex(x=>x.id===w.id);
+        const d=new Date(w.timestamp);
+        const dateStr=d.toLocaleDateString([],{month:'short',day:'numeric'});
+        const timeStr=d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+        const row=document.createElement('div');
+        row.style.cssText='border-bottom:0.5px solid var(--border);padding:8px 0;display:flex;flex-direction:column;gap:4px';
+        row.innerHTML=`
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:15px">🏆</span>
+              <span style="font-size:13px;font-weight:500;color:var(--text)">${esc(w.title)}</span>
+            </div>
+            <button class="chip-secondary" style="font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openWinEdit(${realIdx})">Edit</button>
+          </div>
+          ${w.desc?`<div style="font-size:11px;color:var(--text2);padding-left:21px">${esc(w.desc)}</div>`:''}
+          ${w.reason?`<div style="font-size:11px;color:var(--text);padding:4px 8px;background:var(--surface2);border-radius:var(--radius-sm);border-left:2px solid var(--amber);margin-left:21px">${esc(w.reason)}</div>`:''}
+          <div style="font-size:10px;color:var(--text3);padding-left:21px">${dateStr} at ${timeStr}</div>`;
+        wBody.appendChild(row);
+      });
+      mBody.appendChild(wWrap);
+      wIdx++;
+    });
+    el.appendChild(mWrap);
+    mIdx++;
   });
 }
 
@@ -1909,24 +1998,40 @@ function buildHistory(){
     return;
   }
   el.innerHTML='';
-  [...history].reverse().forEach((h,ri)=>{
-    const realIdx=history.length-1-ri;
-    const ts=h.timestamp?new Date(h.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-    const row=document.createElement('div');
-    row.className='history-row';
-    row.style.cssText='flex-direction:column;align-items:stretch;padding:8px 0;gap:4px;cursor:pointer';
-    row.innerHTML=`
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="history-date">${h.date}${ts?' '+ts:''}</span>
-        <span style="font-size:15px">${me[h.mood]||'—'}</span>
-        <span style="font-size:15px">${de[h.day]||'—'}</span>
-        <span class="history-quote">${h.grateful?'"'+esc(h.grateful.slice(0,45))+(h.grateful.length>45?'…':'')+'"':''}</span>
-        <button class="chip-secondary" style="margin-left:auto;font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openEditEntry(${realIdx},event)">Edit</button>
-      </div>
-      ${h.accomplish?`<div style="font-size:11px;color:var(--text2);padding-left:4px">🏅 ${esc(h.accomplish.slice(0,60))}${h.accomplish.length>60?'…':''}</div>`:''}
-      ${h.overall?`<div style="font-size:11px;color:var(--text2);padding-left:4px;font-style:italic">💬 ${esc(h.overall.slice(0,80))}${h.overall.length>80?'…':''}</div>`:''}
-    `;
-    el.appendChild(row);
+  const sorted=[...history].sort((a,b)=>b.date.localeCompare(a.date));
+
+  // Group by month
+  const byMonth=new Map();
+  sorted.forEach(h=>{
+    const mk=monthKey(h.date);
+    if(!byMonth.has(mk))byMonth.set(mk,[]);
+    byMonth.get(mk).push(h);
+  });
+
+  let mIdx=0;
+  byMonth.forEach((mEntries,month)=>{
+    const {wrap,body}=makeGroupHeader(month,mEntries.length,'hm'+mIdx,mIdx===0);
+    mEntries.forEach(h=>{
+      const realIdx=history.findIndex(x=>x.date===h.date&&x.timestamp===h.timestamp);
+      const ts=h.timestamp?new Date(h.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+      const row=document.createElement('div');
+      row.className='history-row';
+      row.style.cssText='flex-direction:column;align-items:stretch;padding:8px 0;gap:4px';
+      row.innerHTML=`
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="history-date">${h.date}${ts?' '+ts:''}</span>
+          <span style="font-size:15px">${me[h.mood]||'—'}</span>
+          <span style="font-size:15px">${de[h.day]||'—'}</span>
+          <span class="history-quote">${h.grateful?'"'+esc(h.grateful.slice(0,45))+(h.grateful.length>45?'…':'')+'"':''}</span>
+          <button class="chip-secondary" style="margin-left:auto;font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openEditEntry(${realIdx},event)">Edit</button>
+        </div>
+        ${h.accomplish?`<div style="font-size:11px;color:var(--text2);padding-left:4px">🏅 ${esc(h.accomplish.slice(0,60))}${h.accomplish.length>60?'…':''}</div>`:''}
+        ${h.overall?`<div style="font-size:11px;color:var(--text2);padding-left:4px;font-style:italic">💬 ${esc(h.overall.slice(0,80))}${h.overall.length>80?'…':''}</div>`:''}
+      `;
+      body.appendChild(row);
+    });
+    el.appendChild(wrap);
+    mIdx++;
   });
 }
 
