@@ -267,6 +267,10 @@
 
   /* THEME TOGGLE */
   .theme-btn { background: transparent; border: 0.5px solid var(--border2); border-radius: 20px; padding: 4px 13px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text2); font-family: 'DM Sans', sans-serif; white-space: nowrap; transition: all 0.15s; }
+  .daycard-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:2px; flex-wrap:wrap; min-width:0; }
+  .daycard-controls { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .daycard-btn { font-size:11px !important; padding:3px 9px !important; }
+  .sync-status-lbl { font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; min-width:52px; text-align:right; display:inline-block; }
   .theme-btn:hover { border-color: var(--text2); color: var(--text); }
 
   .section-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; }
@@ -313,7 +317,7 @@
     .task-item { padding: 9px 10px; gap: 6px; margin-bottom: 7px; }
     .habit-item { padding: 9px 10px; gap: 6px; margin-bottom: 7px; }
     .task-text { font-size: 14px; }
-    .sq-btn { width: 40px; height: 40px; }
+    .sq-btn { width: 36px; height: 36px; }
     .sub-task-row { padding: 11px 12px; }
     .sub-check { width: 22px; height: 22px; }
     .sub-text { font-size: 13px; }
@@ -345,7 +349,11 @@
 
     /* Chips & buttons */
     .chip, .chip-primary, .chip-secondary, .chip-success { font-size: 12px; padding: 5px 12px; }
-    .theme-btn { padding: 5px 11px; font-size: 11px; }
+    .theme-btn { padding: 4px 9px; font-size: 11px; }
+    .daycard-btn { font-size:10px !important; padding:2px 7px !important; }
+    .sync-status-lbl { display:none; }
+    .timer-preset-btn { width:auto !important; }
+    .timer-controls-row { justify-content:center; }
 
     /* Metrics */
     .metrics-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -391,12 +399,12 @@
   <!-- TOP BAR -->
   <div class="topbar">
     <div class="day-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px;flex-wrap:wrap">
+      <div class="daycard-header">
         <div class="day-name" id="dayName">—</div>
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span id="syncStatus" style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;min-width:58px;text-align:right;display:inline-block"></span>
-          <button onclick="syncNow()" class="chip-secondary" style="font-size:11px;padding:3px 10px" title="Force sync to cloud">⟳ Sync</button>
-          <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+        <div class="daycard-controls">
+          <span id="syncStatus" class="sync-status-lbl"></span>
+          <button onclick="syncNow()" class="chip-secondary daycard-btn" title="Force sync to cloud">⟳ Sync</button>
+          <button class="theme-btn daycard-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
         </div>
       </div>
       <div class="day-date" id="dateStr">—</div>
@@ -525,9 +533,9 @@
                 </div>
               </div>
               <div class="prog-bar-track"><div class="prog-bar-fill" id="pFill" style="width:0%;background:#16a34a"></div></div>
-              <div style="display:flex;justify-content:space-between;margin-top:2px">
-                <span style="font-size:10px;color:var(--text3)" id="pPct">0%</span>
-                <span style="font-size:10px;color:var(--text3)" id="pLeft">—</span>
+              <div style="display:flex;justify-content:space-between;margin-top:2px;min-width:0">
+                <span style="font-size:10px;color:var(--text3);flex-shrink:0" id="pPct">0%</span>
+                <span style="font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap" id="pLeft">—</span>
               </div>
             </div>
             <!-- Inner tab bar -->
@@ -567,9 +575,9 @@
                 </div>
               </div>
               <div class="prog-bar-track"><div class="prog-bar-fill" id="ppFill" style="width:0%;background:#534AB7"></div></div>
-              <div style="display:flex;justify-content:space-between;margin-top:2px">
-                <span style="font-size:10px;color:var(--text3)" id="ppPct">0%</span>
-                <span style="font-size:10px;color:var(--text3)" id="ppLeft">—</span>
+              <div style="display:flex;justify-content:space-between;margin-top:2px;min-width:0">
+                <span style="font-size:10px;color:var(--text3);flex-shrink:0" id="ppPct">0%</span>
+                <span style="font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap" id="ppLeft">—</span>
               </div>
             </div>
             <!-- Inner tab bar -->
@@ -824,64 +832,88 @@ function gsUrl(params){
   return GS_URL+'?'+qs+'&_='+Date.now();
 }
 
+// Sync: batch all pending keys into a single POST request to avoid
+// per-key fetch spam and CORS pre-flight issues on mobile browsers.
+let _syncFailCount=0;
+const _MAX_SYNC_FAILS=3; // Stop retrying after 3 consecutive failures
+
 function flushToCloud(){
   if(_syncing)return;
   const keys=Object.keys(_syncPending);
   if(!keys.length)return;
+  // Stop hammering if we've already failed several times this session
+  if(_syncFailCount>=_MAX_SYNC_FAILS)return;
   const batch={..._syncPending};
   _syncPending={};
   _syncing=true;
   showSyncStatus('Saving...');
 
-  let chain=Promise.resolve();
-  keys.forEach(k=>{
-    chain=chain.then(()=>{
-      const url=gsUrl({action:'set',key:k,value:batch[k]});
-      return fetch(url,{cache:'no-store'})
-        .then(r=>r.json())
-        .then(res=>{ if(!res.success) throw new Error('Set failed for '+k); })
-        .catch(err=>{
-          console.warn('Sync write failed for',k,err);
-          _syncPending[k]=batch[k];
-        });
-    });
-  });
-
-  chain.then(()=>{
+  // Send all keys as a single batch POST instead of one fetch per key
+  const url=GS_URL;
+  const body=JSON.stringify({action:'setBatch',data:batch});
+  fetch(url,{
+    method:'POST',
+    cache:'no-store',
+    headers:{'Content-Type':'text/plain'}, // avoid pre-flight on iOS
+    body:body
+  })
+  .then(r=>r.json())
+  .then(res=>{
     _syncing=false;
-    if(Object.keys(_syncPending).length){
-      showSyncStatus('Retry...');
-      _syncTimer=setTimeout(flushToCloud,5000);
-    } else {
+    _syncFailCount=0;
+    if(res.success){
       showSyncStatus('Saved ✓');
       setTimeout(()=>showSyncStatus(''),2000);
+    } else {
+      // Put keys back and retry once
+      Object.assign(_syncPending,batch);
+      showSyncStatus('Retry...');
+      _syncTimer=setTimeout(flushToCloud,8000);
+    }
+  })
+  .catch(()=>{
+    _syncing=false;
+    _syncFailCount++;
+    // Silently put keys back; stop showing errors after threshold
+    Object.assign(_syncPending,batch);
+    if(_syncFailCount<_MAX_SYNC_FAILS){
+      showSyncStatus('Offline');
+      setTimeout(()=>showSyncStatus(''),2000);
+      _syncTimer=setTimeout(flushToCloud,10000);
+    } else {
+      // Quietly give up — localStorage still has everything
+      showSyncStatus('');
     }
   });
 }
 
 function loadFromCloud(){
   showSyncStatus('Syncing...');
-  fetch(gsUrl({action:'getAll'}),{cache:'no-store'})
-    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(res=>{
-      if(res.success&&res.data&&Object.keys(res.data).length>0){
-        Object.keys(res.data).forEach(k=>{
-          const v=res.data[k];
-          if(v!=null&&v!=='') try{localStorage.setItem(k,String(v));}catch{}
-        });
-        showSyncStatus('Synced ✓');
-      } else {
-        showSyncStatus('Ready');
-      }
-      setTimeout(()=>showSyncStatus(''),2000);
-      initApp();
-    })
-    .catch(err=>{
-      console.warn('Load from cloud failed:',err);
-      showSyncStatus('Offline');
-      setTimeout(()=>showSyncStatus(''),2500);
-      initApp();
-    });
+  fetch(GS_URL+'?action=getAll&_='+Date.now(),{
+    cache:'no-store',
+    headers:{'Content-Type':'text/plain'}
+  })
+  .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(res=>{
+    if(res.success&&res.data&&Object.keys(res.data).length>0){
+      Object.keys(res.data).forEach(k=>{
+        const v=res.data[k];
+        if(v!=null&&v!=='') try{localStorage.setItem(k,String(v));}catch{}
+      });
+      showSyncStatus('Synced ✓');
+    } else {
+      showSyncStatus('Ready');
+    }
+    _syncFailCount=0;
+    setTimeout(()=>showSyncStatus(''),2000);
+    initApp();
+  })
+  .catch(()=>{
+    // Load failed — just use local data, no console spam
+    showSyncStatus('Offline');
+    setTimeout(()=>showSyncStatus(''),2000);
+    initApp();
+  });
 }
 
 function syncNow(){
@@ -1621,7 +1653,7 @@ function updateProg(){
   document.getElementById('pFill').style.width=Math.round(pct*100)+'%';
   document.getElementById('pPct').textContent=Math.round(pct*100)+'%';
   const ml=eM-nM;
-  document.getElementById('pLeft').textContent=ml>0?`${Math.floor(ml/60)}h ${ml%60}m left`:'Complete';
+  document.getElementById('pLeft').textContent=ml>0?`${Math.floor(ml/60)}h ${ml%60}m`:'Done';
   document.getElementById('pFill').style.backgroundColor=progColor(pct);
   settings.wStart=wS.value;
   settings.wEnd=wE.value;
@@ -1640,7 +1672,7 @@ function updatePersonalProg(){
   document.getElementById('ppFill').style.width=Math.round(pct*100)+'%';
   document.getElementById('ppPct').textContent=Math.round(pct*100)+'%';
   const ml=eM-nM;
-  document.getElementById('ppLeft').textContent=ml>0?`${Math.floor(ml/60)}h ${ml%60}m left`:'Complete';
+  document.getElementById('ppLeft').textContent=ml>0?`${Math.floor(ml/60)}h ${ml%60}m`:'Done';
   document.getElementById('ppFill').style.backgroundColor=progColor(pct);
   settings.pStart=pS.value;
   settings.pEnd=pE.value;
