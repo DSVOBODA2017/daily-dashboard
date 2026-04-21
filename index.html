@@ -918,10 +918,9 @@ let moodChart=null,dayChart=null;
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function linkify(text){
-  // First escape HTML, then convert URLs to clickable links
   const escaped=esc(text);
   return escaped.replace(/(https?:\/\/[^\s<>"]+)/g,
-    '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;word-break:break-all" onclick="event.stopPropagation()">$1</a>'
+    '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;word-break:break-all">$1</a>'
   );
 }
 
@@ -1039,10 +1038,10 @@ function renderTasks(list,cid,countId){
         t.steps.forEach(function(s,si){
           const row=document.createElement('div');
           row.className='sub-task-row'+(s.done?' done-sub':'');
-          row.innerHTML='<div class="sub-check">'+(s.done?CHECK_W:'')+'</div><span class="sub-text">'+esc(s.text)+'</span>';
+          row.innerHTML='<div class="sub-check">'+(s.done?CHECK_W:'')+'</div><span class="sub-text">'+linkify(s.text)+'</span>';
           row.addEventListener('mousedown',function(e){e.stopPropagation();});
           row.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
-          row.addEventListener('click',function(e){e.stopPropagation();toggleTaskStep(list,t.id,si);});
+          row.addEventListener('click',function(e){e.stopPropagation();if(e.target.closest('a'))return;toggleTaskStep(list,t.id,si);});
           stepsWrap.appendChild(row);
         });
         d.appendChild(stepsWrap);
@@ -1176,10 +1175,10 @@ function renderHabitGroup(group){
       h.steps.forEach(function(s,si){
         const row=document.createElement('div');
         row.className='sub-task-row'+(s.done?' done-sub':'');
-        row.innerHTML='<div class="sub-check">'+(s.done?CHECK_W:'')+'</div><span class="sub-text">'+esc(s.text)+'</span>';
+        row.innerHTML='<div class="sub-check">'+(s.done?CHECK_W:'')+'</div><span class="sub-text">'+linkify(s.text)+'</span>';
         row.addEventListener('mousedown',function(e){e.stopPropagation();});
         row.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
-        row.addEventListener('click',function(e){e.stopPropagation();toggleStep(h.id,si);});
+        row.addEventListener('click',function(e){e.stopPropagation();if(e.target.closest('a'))return;toggleStep(h.id,si);});
         stepsWrap.appendChild(row);
       });
       d.appendChild(stepsWrap);
