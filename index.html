@@ -157,7 +157,7 @@
   .habit-item { background: var(--surface); border: 1.5px solid var(--border2); border-radius: 8px; padding: 8px 10px; display: flex; align-items: center; gap: 6px; margin-bottom: 7px; transition: border-color 0.15s; overflow: hidden; min-width: 0; }
   .habit-item:hover { border-color: var(--border2); }
   .habit-item.done { background: var(--green-bg); border-color: var(--green); }
-  .habit-steps { padding:6px 0 2px 12px; display:flex; flex-direction:column; gap:4px; border-left:2px solid var(--border2); margin:6px 0 2px 4px; }
+
   .habit-step { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text2); }
   .habit-step.done-step { color:var(--text3); text-decoration:line-through; }
   .habit-step input[type=checkbox] { accent-color:var(--green); width:13px; height:13px; cursor:pointer; flex-shrink:0; }
@@ -225,8 +225,7 @@
   .sq-btn.del-btn { margin-left: auto; flex-shrink: 0; }
   .sq-btn.del-btn:hover { background: var(--red-bg); border-color: var(--red); color: var(--red); }
   .sq-btn.skip-btn:hover { background: var(--red-bg); border-color: var(--red); color: var(--red); }
-  .expand-arrow { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 10px; padding: 4px; line-height: 1; flex-shrink: 0; transition: transform 0.15s, color 0.12s; }
-  .expand-arrow:hover { color: var(--text); }
+
 
   /* SUB-TASK ROWS */
   .sub-task-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1.5px solid var(--border2); border-radius: 7px; cursor: pointer; transition: background 0.12s, border-color 0.12s; user-select: none; }
@@ -1187,8 +1186,10 @@ function renderHabitGroup(group){
     const hasSteps=h.steps&&h.steps.length>0;
     const stepsDone=hasSteps?h.steps.filter(s=>s.done).length:0;
     const stepsTotal=hasSteps?h.steps.length:0;
-    const stepsProg=hasSteps?'<span class="step-progress">'+stepsDone+'/'+stepsTotal+'</span>':'';
-    const expandBtn=hasSteps?'<button class="expand-arrow" id="expandBtn_'+h.id+'" onmousedown="event.stopPropagation()" onclick="toggleSteps('+h.id+')" style="transform:'+(h._expanded?'rotate(90deg)':'rotate(0deg)')+'">▶</button>':'<span style="width:18px;flex-shrink:0"></span>';
+    const LIST_ICO='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
+    const CHEVRON_I='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    const stepsProg=hasSteps?'<button class="task-steps-toggle" data-hid="'+h.id+'" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation();toggleSteps(+this.dataset.hid)" title="Toggle steps">'+LIST_ICO+'<span class="step-progress" style="background:none;border:none;padding:0">'+stepsDone+'/'+stepsTotal+'</span><span style="transition:transform 0.15s;display:inline-flex;transform:'+(h._expanded?'rotate(90deg)':'rotate(0deg)')+'">'+CHEVRON_I+'</span></button>':'';
+    const expandBtn='';
     // Build sq-btn action buttons
     let sqActionBtns='';
     const CHECK='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -1203,7 +1204,7 @@ function renderHabitGroup(group){
       sqActionBtns='<button class="sq-btn done-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit('+h.id+')" title="Done">'+CHECK+'</button>'+'<button class="sq-btn skip-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="skipHabit('+h.id+')" title="Skip">'+SKIP_X+'</button>';
     }
     // Build steps HTML using DOM (no nested template literals)
-    const headerHtml='<div style="display:flex;align-items:center;gap:6px">'+expandBtn+sqActionBtns+'<span style="flex:1;font-size:14px;color:var(--text);'+(h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':'')+'">'+(h.text?esc(h.text):'')+'</span>'+stepsProg+'<span class="'+streakClass+'">'+streakLabel+'</span>'+'<button class="sq-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit(&apos;habits&apos;,'+h.id+')" title="Edit">'+EDIT_I+'</button>'+'<button class="sq-btn del-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit('+h.id+')" title="Delete">'+DEL_I+'</button></div>';
+    const headerHtml='<div style="display:flex;align-items:center;gap:6px">'+sqActionBtns+'<span style="flex:1;font-size:14px;color:var(--text);'+(h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':'')+'">'+(h.text?esc(h.text):'')+'</span>'+stepsProg+'<span class="'+streakClass+'">'+streakLabel+'</span>'+'<button class="sq-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit(&apos;habits&apos;,'+h.id+')" title="Edit">'+EDIT_I+'</button>'+'<button class="sq-btn del-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit('+h.id+')" title="Delete">'+DEL_I+'</button></div>';
     d.innerHTML=headerHtml;
     if(hasSteps&&h._expanded){
       const stepsWrap=document.createElement('div');
