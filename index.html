@@ -53,7 +53,7 @@
   .app { max-width: 1380px; margin: 0 auto; padding: 20px 16px; width: 100%; }
 
   /* TOP BAR */
-  .topbar { display: grid; grid-template-columns: auto auto; gap: 12px; margin-bottom: 14px; align-items: stretch; min-width: 0; }
+  .topbar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; align-items: stretch; min-width: 0; }
   .day-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px 18px; }
   .day-name { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
   .day-date { font-size: 12px; color: var(--text2); margin-bottom: 12px; }
@@ -264,58 +264,114 @@
   .row { display: flex; align-items: center; gap: 7px; }
   .save-btn-wrap { margin-top: 8px; }
 
+  /* ── Tablet (≤900px) ──────────────────────────────── */
   @media (max-width: 900px) {
-    .main-grid { grid-template-columns: 1fr; }
+    .topbar { grid-template-columns: 1fr 1fr; }
+    .topbar > .panel:last-child { grid-column: 1 / -1; }
+    .lists-grid,
+    .lists-grid[data-cols="1"],
+    .lists-grid[data-cols="2"],
+    .lists-grid[data-cols="3"] { grid-template-columns: 1fr 1fr; }
+    .metrics-grid { grid-template-columns: repeat(3, 1fr); }
+    .charts-row { grid-template-columns: 1fr; }
+    .task-actions { opacity: 1; }
+    .habit-actions { opacity: 1; }
+  }
+
+  /* ── Mobile (≤680px) ───────────────────────────────── */
+  @media (max-width: 680px) {
+    .app { padding: 10px 8px; }
+    .topbar { grid-template-columns: 1fr; }
+    .topbar > .panel { min-width: 0; }
     .lists-grid,
     .lists-grid[data-cols="1"],
     .lists-grid[data-cols="2"],
     .lists-grid[data-cols="3"] { grid-template-columns: 1fr; }
-    .topbar { grid-template-columns: 1fr; }
-    .topbar > .panel { min-width: 0; }
-    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
-    .charts-row { grid-template-columns: 1fr; }
-    .task-actions { opacity: 1; }
-    .habit-actions { opacity: 1; }
-    .toggle-strip { gap: 6px; }
-    .chip, .chip-primary, .chip-secondary, .chip-success { padding: 6px 14px; font-size: 13px; }
+
+    /* Day card */
+    .day-card { padding: 12px 14px; }
+    .day-name { font-size: 22px; }
     .rating-row { gap: 10px; }
-    .radio-strip input[type=radio] { width: 22px; height: 22px; }
-  }
-  @media (max-width: 600px) {
-    .app { padding: 10px 10px; }
-    .day-card, .progress-card, .panel { padding: 11px 12px; }
-    .progress-header { flex-direction: column; align-items: flex-start; }
-    .prog-controls { width: 100%; }
-    .prog-controls input[type=time] { width: 90px; font-size: 12px; }
-    .task-item, .habit-item { padding: 10px 9px; gap: 7px; }
-    .task-actions, .habit-actions { opacity: 1; gap: 4px; }
-    .btn-xs { padding: 6px 10px; font-size: 12px; min-height: 32px; }
-    .star-btn { padding: 4px 5px; min-height: 32px; min-width: 32px; }
-    .drag-handle { font-size: 16px; padding: 2px 4px; }
+    .radio-strip { gap: 8px; }
+    .radio-strip input[type=radio] { width: 24px; height: 24px; }
+    .rating-emoji { font-size: 26px; }
+    .rating-group label.lbl { min-width: 40px; font-size: 11px; }
+
+    /* Panels */
+    .panel { padding: 12px 12px; }
     .panel-header { flex-wrap: wrap; gap: 6px; }
-    .panel-header .row { flex-wrap: wrap; }
-    .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-    .tab-bar { flex-wrap: wrap; }
-    .rating-emoji { font-size: 24px; }
-    .toggle-strip { gap: 5px; }
+    .panel-header .row { flex-wrap: wrap; gap: 4px; }
+    .panel-title { font-size: 12px; }
+
+    /* Inner tabs */
+    .panel-inner-tab { padding: 8px 10px; font-size: 11px; }
+
+    /* Tasks & habits */
+    .task-item { padding: 9px 10px; gap: 6px; margin-bottom: 7px; }
+    .habit-item { padding: 9px 10px; gap: 6px; margin-bottom: 7px; }
+    .task-text { font-size: 14px; }
+    .sq-btn { width: 40px; height: 40px; }
+    .sub-task-row { padding: 11px 12px; }
+    .sub-check { width: 22px; height: 22px; }
+    .sub-text { font-size: 13px; }
+    .streak-badge { font-size: 10px; padding: 2px 7px; }
+    .step-progress { font-size: 10px; }
+    .due-badge { font-size: 10px; padding: 2px 8px; }
+    .task-desc { font-size: 12px; }
+    .task-meta { margin-top: 4px; }
+
+    /* Inline forms */
+    .inline-form { padding: 12px 12px 10px; gap: 8px; }
+    .inline-form input[type=text],
+    .inline-form textarea,
+    .inline-form input[type=date],
+    .inline-form input[type=time] { font-size: 14px; padding: 7px 10px; }
+    .inline-form-row { flex-direction: column; align-items: stretch; }
+    .inline-form-actions { gap: 8px; }
+
+    /* Focus timer */
+    .timer-display { font-size: 36px; }
+    #timerInput { width: 90px !important; font-size: 12px !important; }
+    #presetBtns { gap: 5px; }
+
+    /* Chips & buttons */
     .chip, .chip-primary, .chip-secondary, .chip-success { font-size: 12px; padding: 5px 12px; }
-    .theme-btn { padding: 4px 10px; font-size: 11px; }
-    .modal { padding: 16px; }
-    .history-date { min-width: 58px; font-size: 10px; }
-    .zero-state { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; min-height:120px; text-align:center; padding: 24px 16px; color: var(--text3); font-size: 12px; border: 1px dashed var(--border2); border-radius: var(--radius-sm); }
-  .zero-state svg { margin-bottom:8px; opacity:0.35; }
-  .streak-badge { font-size: 9px; padding: 2px 5px; }
-  }
-  @media (max-width: 480px) {
+    .theme-btn { padding: 5px 11px; font-size: 11px; }
 
-  }
-  @media (max-width: 380px) {
-    .app { padding: 8px; }
-    .day-card, .progress-card, .panel { padding: 10px; }
-    .day-name { font-size: 20px; }
-    .btn-xs { padding: 5px 8px; font-size: 11px; }
-    .prog-controls input[type=time] { width: 80px; font-size: 11px; padding: 3px 4px; }
+    /* Metrics */
+    .metrics-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .metric-num { font-size: 22px; }
+    .metric-lbl { font-size: 9px; }
+    .charts-row { grid-template-columns: 1fr; }
+    .tab-bar { flex-wrap: wrap; gap: 4px; }
+    .history-list { max-height: none; }
+    .history-date { font-size: 10px; min-width: 56px; }
 
+    /* Modal */
+    .modal { padding: 16px 14px; width: calc(100vw - 24px) !important; max-width: none !important; }
+    .modal-title { font-size: 15px; }
+
+    /* Zero state */
+    .zero-state { min-height: 100px; padding: 20px 12px; font-size: 12px; }
+    .zero-state svg { margin-bottom: 6px; }
+
+    /* Progress bars */
+    .prog-bar-track { height: 12px; }
+  }
+
+  /* ── Small mobile (≤400px) ─────────────────────────── */
+  @media (max-width: 400px) {
+    .app { padding: 8px 6px; }
+    .panel { padding: 10px; }
+    .day-card { padding: 10px; }
+    .day-name { font-size: 18px; }
+    .sq-btn { width: 38px; height: 38px; }
+    .timer-display { font-size: 30px; letter-spacing: 2px; }
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .chip, .chip-primary, .chip-secondary, .chip-success { font-size: 11px; padding: 4px 10px; }
+    .panel-inner-tab { font-size: 10px; padding: 7px 8px; }
+    .radio-strip { gap: 6px; }
+    .radio-strip input[type=radio] { width: 22px; height: 22px; }
   }
 </style>
 </head>
@@ -326,7 +382,7 @@
   <!-- TOP BAR -->
   <div class="topbar">
     <div class="day-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px;flex-wrap:wrap">
         <div class="day-name" id="dayName">—</div>
         <div style="display:flex;align-items:center;gap:8px">
           <span id="syncStatus" style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;min-width:58px;text-align:right;display:inline-block"></span>
@@ -382,7 +438,7 @@
     </div>
 
     <!-- FOCUS TIMER (2nd column) -->
-    <div class="panel" style="text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:180px">
+    <div class="panel" style="text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:0">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <span class="panel-title">FOCUS TIMER</span>
         <div style="display:flex;align-items:center;gap:5px">
@@ -397,7 +453,7 @@
           <button class="chip-secondary" style="font-size:11px;padding:3px 9px;white-space:nowrap" onclick="openSetPreset()" title="Save current time as a preset">Set preset</button>
         </div>
       </div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="presetBtns"></div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:10px;flex-wrap:wrap;width:100%" id="presetBtns"></div>
       <div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap">
         <div class="timer-display" id="timerDisp">25:00</div>
         <canvas id="hgCanvas" width="64" height="88" style="flex-shrink:0;image-rendering:pixelated"></canvas>
