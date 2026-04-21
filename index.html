@@ -53,7 +53,7 @@
   .app { max-width: 1380px; margin: 0 auto; padding: 20px 16px; width: 100%; }
 
   /* TOP BAR */
-  .topbar { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; min-width: 0; }
+  .topbar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; min-width: 0; align-items: stretch; }
   .day-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px 18px; }
   .day-name { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; color: var(--text); }
   .day-date { font-size: 12px; color: var(--text2); margin-bottom: 12px; }
@@ -192,7 +192,17 @@
 
   /* TIMER */
   @keyframes pulse{from{opacity:1;}to{opacity:0.55;}}
-  .timer-display { font-family: 'DM Mono', monospace; font-size: 42px; font-weight: 500; color: var(--text); letter-spacing: 3px; white-space: nowrap; line-height: 1; }
+  .timer-display { font-family: 'DM Mono', monospace; font-size: 64px; font-weight: 500; color: var(--text); letter-spacing: 4px; white-space: nowrap; line-height: 1; }
+  .timer-panel { display: flex; flex-direction: column; min-width: 0; }
+  .timer-title { margin-bottom: 14px; }
+  .timer-main { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 18px; }
+  .timer-controls-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .timer-input { width: 120px; flex-shrink: 0; font-size: 14px; font-family: 'DM Mono', monospace; text-align: center; letter-spacing: 1px; padding: 6px 10px; cursor: text; }
+  .timer-preset-btn { font-size: 12px !important; padding: 6px 14px !important; white-space: nowrap; flex-shrink: 0; }
+  .timer-preset-pill { font-size: 12px !important; padding: 6px 14px !important; }
+  .timer-presets { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .timer-action-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .timer-action-btn { font-size: 14px !important; padding: 10px 0 !important; width: 160px; justify-content: center; display: flex; }
 
   /* PRIVACY */
 
@@ -266,8 +276,6 @@
 
   /* ── Tablet (≤900px) ──────────────────────────────── */
   @media (max-width: 900px) {
-    .topbar { grid-template-columns: 1fr 1fr; }
-    .topbar > .panel:last-child { grid-column: 1 / -1; }
     .lists-grid,
     .lists-grid[data-cols="1"],
     .lists-grid[data-cols="2"],
@@ -278,11 +286,11 @@
     .habit-actions { opacity: 1; }
   }
 
-  /* ── Mobile (≤680px) ───────────────────────────────── */
-  @media (max-width: 680px) {
+  /* ── Mobile (≤768px) ───────────────────────────────── */
+  @media (max-width: 768px) {
     .app { padding: 10px 8px; }
     .topbar { grid-template-columns: 1fr; }
-    .topbar > .panel { min-width: 0; }
+    .topbar > * { min-width: 0; }
     .lists-grid,
     .lists-grid[data-cols="1"],
     .lists-grid[data-cols="2"],
@@ -330,9 +338,14 @@
     .inline-form-actions { gap: 8px; }
 
     /* Focus timer */
-    .timer-display { font-size: 32px; letter-spacing: 2px; }
-    #timerInput { width: 86px !important; font-size: 12px !important; }
-    #presetBtns { gap: 4px; justify-content: center; }
+    .timer-display { font-size: 44px; letter-spacing: 3px; }
+    .timer-input { width: 100% !important; flex: 1; min-width: 0; }
+    .timer-controls-row { flex-direction: column; align-items: stretch; }
+    .timer-preset-btn { text-align: center; }
+    .timer-presets { justify-content: center; width: 100%; flex-wrap: wrap; gap: 8px; }
+    .timer-preset-pill { font-size: 13px !important; padding: 7px 18px !important; }
+    .timer-action-row { gap: 10px; }
+    .timer-action-btn { width: 100% !important; max-width: none !important; }
     input[type=time] { width: 68px !important; font-size: 11px !important; padding: 2px 3px !important; }
 
     /* Chips & buttons */
@@ -367,7 +380,7 @@
     .day-card { padding: 10px; }
     .day-name { font-size: 18px; }
     .sq-btn { width: 38px; height: 38px; }
-    .timer-display { font-size: 30px; letter-spacing: 2px; }
+    .timer-display { font-size: 36px; letter-spacing: 2px; }
     .metrics-grid { grid-template-columns: repeat(2, 1fr); }
     .chip, .chip-primary, .chip-secondary, .chip-success { font-size: 11px; padding: 4px 10px; }
     .panel-inner-tab { font-size: 10px; padding: 7px 8px; }
@@ -439,29 +452,34 @@
     </div>
 
     <!-- FOCUS TIMER (2nd column) -->
-    <div class="panel" style="text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:0">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <span class="panel-title">FOCUS TIMER</span>
-        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          <input type="text" id="timerInput" value="00:25:00"
-            maxlength="8"
-            inputmode="numeric"
-            style="width:100px;font-size:13px;font-family:'DM Mono',monospace;text-align:center;letter-spacing:1px;padding:3px 6px;cursor:text"
-            placeholder="hh:mm:ss"
-            onfocus="this.select()"
-            onchange="timerInputChanged()"
-            onblur="timerInputChanged()">
-          <button class="chip-secondary" style="font-size:11px;padding:3px 9px;white-space:nowrap" onclick="openSetPreset()" title="Save current time as a preset">Set preset</button>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:10px;flex-wrap:wrap;width:100%" id="presetBtns"></div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap">
+    <div class="panel timer-panel">
+      <!-- Row 1: Title -->
+      <span class="panel-title timer-title">FOCUS TIMER</span>
+
+      <!-- Row 2: Timer display + hourglass -->
+      <div class="timer-main">
         <div class="timer-display" id="timerDisp">25:00</div>
         <canvas id="hgCanvas" width="64" height="88" style="flex-shrink:0;image-rendering:pixelated"></canvas>
       </div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px">
-        <button class="chip-secondary" onclick="timerReset()">Reset</button>
-        <button class="chip-success" id="timerBtn" onclick="timerToggle()">Start</button>
+
+      <!-- Row 3: Input + Set Preset + Presets -->
+      <div class="timer-controls-row">
+        <input type="text" id="timerInput" value="00:25:00"
+          class="timer-input"
+          maxlength="8"
+          inputmode="numeric"
+          placeholder="hh:mm:ss"
+          onfocus="this.select()"
+          onchange="timerInputChanged()"
+          onblur="timerInputChanged()">
+        <button class="chip-secondary timer-preset-btn" onclick="openSetPreset()">Set preset</button>
+        <div class="timer-presets" id="presetBtns"></div>
+      </div>
+
+      <!-- Row 4: Reset + Start -->
+      <div class="timer-action-row">
+        <button class="chip-secondary timer-action-btn" onclick="timerReset()">Reset</button>
+        <button class="chip-success timer-action-btn" id="timerBtn" onclick="timerToggle()">Start</button>
       </div>
     </div>
 
@@ -1596,8 +1614,8 @@ function renderPresets(){
     if(s>0) label+=s+'s';
     label=label.trim();
     const btn=document.createElement('button');
-    btn.className='chip-secondary';
-    btn.style.cssText='font-size:11px;padding:3px 10px';
+    btn.className='chip-secondary timer-preset-pill';
+    btn.style.cssText='';
     btn.textContent=label;
     btn.onclick=()=>{
       const fi=document.getElementById('timerInput');
@@ -1659,7 +1677,7 @@ function _startChimeLoop(ctx){
   chimeLooping=true;
   const btn=document.getElementById('timerBtn');
   btn.textContent='Stop chime';
-  btn.className='chip-primary';btn.style.background='#dc2626';btn.style.borderColor='#dc2626';
+  btn.className='chip-primary timer-action-btn';btn.style.background='#dc2626';btn.style.borderColor='#dc2626';
   btn.onclick=stopChime;
   _doChime(ctx);
 }
@@ -1735,7 +1753,7 @@ function timerReset(){
   if(chimeLooping) stopChime();
   const btn=document.getElementById('timerBtn');
   btn.onclick=timerToggle;
-  btn.className='chip-success';
+  btn.className='chip-success timer-action-btn';
   btn.textContent='Start';
   timerTotal=parseTimerInput()||60;
   timerLeft=timerTotal;
