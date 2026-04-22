@@ -273,7 +273,13 @@
   .daycard-header { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:2px; flex-wrap:wrap; min-width:0; }
   .daycard-controls { display:flex; align-items:center; gap:6px; flex-shrink:0; }
   .daycard-btn { font-size:11px !important; padding:3px 9px !important; }
-  .sync-status-lbl { font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; min-width:52px; text-align:right; display:inline-block; }
+  .sync-status-lbl { display:none; }
+  .sync-icon-btn { background:transparent; border:1px solid var(--border2); border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text2); transition:color 0.15s,border-color 0.15s; flex-shrink:0; }
+  .sync-icon-btn:hover { color:var(--text); border-color:var(--text2); }
+  .sync-icon-btn.spinning svg { animation:spin 1s linear infinite; }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  #syncToast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--surface); border:1px solid var(--border2); border-radius:20px; padding:8px 18px; font-size:12px; font-weight:500; color:var(--text); box-shadow:0 4px 16px rgba(0,0,0,0.12); opacity:0; transition:opacity 0.25s,transform 0.25s; pointer-events:none; z-index:9999; white-space:nowrap; }
+  #syncToast.show { opacity:1; transform:translateX(-50%) translateY(0); }
   .theme-btn:hover { border-color: var(--text2); color: var(--text); }
 
   .section-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; }
@@ -405,9 +411,9 @@
       <div class="daycard-header">
         <div class="day-name" id="dayName">—</div>
         <div class="daycard-controls">
-          <span id="syncStatus" class="sync-status-lbl"></span>
-          <button onclick="syncNow()" class="chip-secondary daycard-btn" title="Force sync to cloud">⟳ Sync</button>
-          <button class="theme-btn daycard-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+          <button onclick="syncNow()" class="sync-icon-btn" id="syncIconBtn" title="Sync to cloud">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
         </div>
       </div>
       <div class="day-date" id="dateStr">—</div>
@@ -949,8 +955,21 @@ function syncNow(){
 }
 
 function showSyncStatus(msg){
-  const el=document.getElementById('syncStatus');
-  if(el)el.textContent=msg;
+  const btn=document.getElementById('syncIconBtn');
+  const toast=document.getElementById('syncToast');
+  const spinning=msg==='Saving...'||msg==='Syncing...';
+  if(btn) btn.classList.toggle('spinning',spinning);
+  // Only show toast for success states
+  if(toast&&(msg==='Saved ✓'||msg==='Synced ✓')){
+    toast.textContent='✓ '+msg;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'),2500);
+  }
+  if(toast&&msg==='Offline'){
+    toast.textContent='Offline — saved locally';
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'),2500);
+  }
 }
 
 // State — populated inside initApp() AFTER cloud sync completes
@@ -1024,7 +1043,7 @@ function renderTasks(list,cid,countId){
     const isEditing=editTarget.list===list&&editTarget.id===t.id;
     const d=document.createElement('div');
     d.className='task-item'+(isP?' priority':'')+(isEditing?' editing':'');
-    d.draggable=!isEditing;d.dataset.i=i;d.dataset.list=list;
+    d.draggable=!isEditing;d.dataset.i=i;d.dataset.tid=t.id;d.dataset.list=list;
     if(isEditing){
       d.innerHTML=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.4px">Editing task</span></div>
         <div class="inline-form-lbl">Task name</div>
@@ -1795,7 +1814,7 @@ function addDrag(el,list){
   /* ---- DESKTOP DRAG ---- */
   el.addEventListener('dragstart',e=>{
     if(e.target.closest('.icon-btn,.star-btn,input')){e.preventDefault();return;}
-    dragSrc={i:+el.dataset.i,list};
+    dragSrc={i:+el.dataset.i,tid:+el.dataset.tid,list};
     setTimeout(()=>el.classList.add('dragging'),0);
   });
   el.addEventListener('dragend',()=>{
@@ -1807,8 +1826,15 @@ function addDrag(el,list){
   el.addEventListener('drop',e=>{
     e.preventDefault();el.classList.remove('drag-over');
     if(!dragSrc||dragSrc.list!==list)return;
-    const to=+el.dataset.i;if(dragSrc.i===to)return;
-    const [item]=tasks[list].splice(dragSrc.i,1);tasks[list].splice(to,0,item);
+    const fromId=dragSrc.tid;
+    const toId=+el.dataset.tid;
+    if(fromId===toId)return;
+    // Reorder within the actual tasks array using IDs
+    const fromIdx=tasks[list].findIndex(t=>t.id===fromId);
+    const toIdx=tasks[list].findIndex(t=>t.id===toId);
+    if(fromIdx<0||toIdx<0)return;
+    const [item]=tasks[list].splice(fromIdx,1);
+    tasks[list].splice(toIdx,0,item);
     save(SK.tasks,tasks);render();
   });
 
@@ -1819,7 +1845,7 @@ function addDrag(el,list){
     didDrag=false;
     holdTimer=setTimeout(()=>{
       didDrag=false;
-      touchDragSrc={i:+el.dataset.i,list};
+      touchDragSrc={i:+el.dataset.i,tid:+el.dataset.tid,list};
       touchList=list;
       el.classList.add('touch-dragging');
       const t0=e.touches[0];
@@ -1858,12 +1884,16 @@ function addDrag(el,list){
     const under=document.elementFromPoint(t.clientX,t.clientY);
     const target=under?.closest('.task-item');
     if(target&&target.dataset.list===list){
-      const to=+target.dataset.i;
-      const from=touchDragSrc.i;
-      if(from!==to){
-        const [item]=tasks[list].splice(from,1);
-        tasks[list].splice(to,0,item);
-        save(SK.tasks,tasks);render();
+      const fromId=touchDragSrc.tid;
+      const toId=+target.dataset.tid;
+      if(fromId!==toId){
+        const fromIdx=tasks[list].findIndex(t=>t.id===fromId);
+        const toIdx=tasks[list].findIndex(t=>t.id===toId);
+        if(fromIdx>=0&&toIdx>=0){
+          const [item]=tasks[list].splice(fromIdx,1);
+          tasks[list].splice(toIdx,0,item);
+          save(SK.tasks,tasks);render();
+        }
       }
     }
     document.querySelectorAll('.task-item').forEach(x=>x.classList.remove('drag-over','touch-dragging'));
@@ -2687,11 +2717,13 @@ function initApp(){
   const overallTxEl=document.getElementById('overallTx');
   if(overallTxEl)overallTxEl.value=refl.overall||'';
 
-  const savedTheme=load(SK.theme,'light');
-  if(savedTheme==='dark'){
-    document.documentElement.setAttribute('data-theme','dark');
-    document.getElementById('themeBtn').textContent='☀️ Light';
-  }
+  // Follow system dark/light preference
+  const prefersDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme',prefersDark?'dark':'light');
+  // Listen for system theme changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',e=>{
+    document.documentElement.setAttribute('data-theme',e.matches?'dark':'light');
+  });
 
   document.querySelectorAll('input[name=mood]').forEach(r=>r.addEventListener('change',()=>{save(SK.mood,r.value);updateRatingEmoji();}));
   document.querySelectorAll('input[name=dayR]').forEach(r=>r.addEventListener('change',()=>{save(SK.day,r.value);updateRatingEmoji();}));
