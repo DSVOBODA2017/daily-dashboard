@@ -1128,6 +1128,13 @@ function renderTasks(list,cid,countId){
         descWrap.appendChild(descSpan);
         descWrap.appendChild(rmBtn);
         d.appendChild(descWrap);
+        // After render: hide Read More if text fits on one line
+        requestAnimationFrame(function(){
+          if(descSpan.scrollHeight<=descSpan.clientHeight+2){
+            rmBtn.style.display='none';
+            descSpan.classList.remove('clamp1');
+          }
+        });
       }
 
       // Row 3: due badge (if any)
