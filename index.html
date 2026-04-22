@@ -800,9 +800,12 @@
         </div>
       </div>
     </div>
-    <div class="row" style="justify-content:flex-end;gap:7px;margin-top:12px">
-      <button class="chip-secondary" onclick="closeModal('edit')">Cancel</button>
-      <button class="chip-primary" onclick="confirmEdit()">Save</button>
+    <div class="row" style="justify-content:space-between;gap:7px;margin-top:12px">
+      <button class="chip-secondary" style="color:var(--red);border-color:var(--red)" onclick="deleteCurrentHabit()">Delete</button>
+      <div class="row" style="gap:7px">
+        <button class="chip-secondary" onclick="closeModal('edit')">Cancel</button>
+        <button class="chip-primary" onclick="confirmEdit()">Save</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1042,9 +1045,12 @@ function renderTasks(list,cid,countId){
           <input type="text" id="taskEditStepInput" placeholder="Add a sub-task..." style="flex:1;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();addTaskEditStep();}">
           <button class="chip-primary" onmousedown="event.preventDefault()" onclick="addTaskEditStep()" style="font-size:11px;flex-shrink:0">+ Step</button>
         </div>
-        <div class="inline-form-actions">
-          <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="cancelInlineEdit()" style="font-size:11px">Cancel</button>
-          <button class="chip-primary" onmousedown="event.preventDefault()" onclick="confirmInlineEdit('${list}',${t.id})" style="font-size:11px">Save</button>
+        <div class="inline-form-actions" style="justify-content:space-between">
+          <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="if(confirm('Delete this task?')){delTask('${list}',${t.id});}" style="font-size:11px;color:var(--red);border-color:var(--red)">Delete</button>
+          <div style="display:flex;gap:6px">
+            <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="cancelInlineEdit()" style="font-size:11px">Cancel</button>
+            <button class="chip-primary" onmousedown="event.preventDefault()" onclick="confirmInlineEdit('${list}',${t.id})" style="font-size:11px">Save</button>
+          </div>
         </div>`;
       // Append win checkbox for work tasks via DOM
       if(list==='work'){
@@ -1100,12 +1106,7 @@ function renderTasks(list,cid,countId){
       nameSpanT.innerHTML=esc(t.text)+(t.isWin?'<span style="font-size:11px;color:var(--amber);margin-left:4px">🏆</span>':'');
       const btnGroup=document.createElement('div');
       btnGroup.style.cssText='display:flex;align-items:center;gap:4px;flex-shrink:0';
-      // Delete
-      const bDel=document.createElement('button');
-      bDel.className='sq-btn del-btn';bDel.style.cssText='margin-left:0';bDel.innerHTML=DEL;bDel.title='Delete';
-      bDel.addEventListener('mousedown',function(e){e.stopPropagation();});
-      bDel.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
-      bDel.addEventListener('click',function(e){e.stopPropagation();delTask(list,t.id);});
+      // Delete moved to edit form
       // Star
       const bStar=document.createElement('button');
       bStar.className='sq-btn'+(isP?' star-active':'');bStar.innerHTML=isP?STARF:STARE;bStar.title='Star';
@@ -1124,7 +1125,7 @@ function renderTasks(list,cid,countId){
       bDone.addEventListener('mousedown',function(e){e.stopPropagation();});
       bDone.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
       bDone.addEventListener('click',function(e){e.stopPropagation();completeTask(list,t.id);});
-      btnGroup.appendChild(bDel);btnGroup.appendChild(bStar);btnGroup.appendChild(bEdit);btnGroup.appendChild(bDone);
+      btnGroup.appendChild(bStar);btnGroup.appendChild(bEdit);btnGroup.appendChild(bDone);
       row1.appendChild(nameSpanT);row1.appendChild(btnGroup);
       d.appendChild(row1);
 
@@ -1350,7 +1351,7 @@ function renderHabitGroup(group){
       '<span style="flex:1;font-size:14px;color:var(--text);min-width:0;word-break:break-word;'+(h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':'')+'">'+(h.text?esc(h.text):'')+'</span>'+
       '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'+
         streakPill+
-        '<button class="sq-btn del-btn" style="margin-left:0" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit('+h.id+')" title="Delete">'+DEL_H+'</button>'+
+
         '<button class="sq-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit(&apos;habits&apos;,'+h.id+')" title="Edit">'+EDIT_H+'</button>'+
         doneBtn+
       '</div>';
@@ -1582,6 +1583,12 @@ function removeEditStep(i){
   renderEditSteps();
 }
 function delHabit(id){habits=habits.filter(h=>h.id!==id);save(SK.habits,habits);renderHabits();}
+function deleteCurrentHabit(){
+  if(editTarget.id===0)return;
+  if(!confirm('Delete this habit? This cannot be undone.'))return;
+  delHabit(editTarget.id);
+  closeModal('edit');
+}
 
 function openAdd(list){
   if(list==='habits'){
