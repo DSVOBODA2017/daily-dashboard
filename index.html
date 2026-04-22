@@ -106,7 +106,7 @@
   .task-item.editing { border:1.5px solid var(--blue); background:var(--surface); flex-direction:column; align-items:stretch; cursor:default; }
   .task-item.editing .task-text { display:none; }
   .task-meta { display:flex; gap:6px; flex-wrap:wrap; margin-top:3px; }
-  .task-desc { font-size:11px; color:var(--text2); line-height:1.4; margin-top:2px; }
+
   .due-badge { font-size:10px; padding:2px 7px; border-radius:8px; border:0.5px solid var(--border2); color:var(--text2); background:var(--surface2); white-space:nowrap; }
   .due-badge.overdue { background:var(--red-bg); color:var(--red); border-color:var(--red); }
   .due-badge.soon { background:var(--amber-bg); color:var(--amber); border-color:var(--amber); }
@@ -162,6 +162,11 @@
   .habit-step.done-step { color:var(--text3); text-decoration:line-through; }
   .habit-step input[type=checkbox] { accent-color:var(--green); width:13px; height:13px; cursor:pointer; flex-shrink:0; }
   .step-progress { font-size:10px; font-weight:600; color:var(--text3); background:var(--surface2); border:0.5px solid var(--border); border-radius:8px; padding:1px 6px; white-space:nowrap; }
+  .clamp1 { display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+  .task-desc-wrap { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; margin-top:4px; }
+  .task-desc-text { font-size:12px; color:var(--text2); line-height:1.4; flex:1; min-width:0; }
+  .read-more-btn { background:none; border:none; cursor:pointer; font-size:11px; font-weight:600; color:var(--blue); padding:0; font-family:'DM Sans',sans-serif; white-space:nowrap; flex-shrink:0; }
+  .read-more-btn:hover { text-decoration:underline; }
   .task-steps-toggle { display:inline-flex; align-items:center; gap:4px; background:var(--surface2); border:0.5px solid var(--border2); border-radius:8px; padding:2px 7px; cursor:pointer; color:var(--text2); font-size:10px; flex-shrink:0; transition:background 0.12s,border-color 0.12s; }
   .task-steps-toggle:hover { background:var(--surface3); border-color:var(--text3); color:var(--text); }
 
@@ -228,15 +233,11 @@
 
 
   /* SUB-TASK ROWS */
-  .sub-task-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1.5px solid var(--border2); border-radius: 7px; cursor: pointer; transition: background 0.12s, border-color 0.12s; user-select: none; }
-  .sub-task-row:hover { background: var(--surface2); border-color: var(--text3); }
-  .sub-task-row:active { transform: scale(0.99); }
+  .sub-task-row { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: var(--surface); border: 1.5px solid var(--border2); border-radius: 7px; transition: background 0.12s, border-color 0.12s; cursor:default; }
+  .sub-task-row:hover { border-color: var(--text3); }
   .sub-task-row.done-sub { opacity: 0.55; }
-  .sub-check { width: 20px; height: 20px; border: 1.5px solid var(--border2); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.12s; background: var(--surface); }
-  .sub-task-row.done-sub .sub-check { background: var(--green); border-color: var(--green); }
-  .sub-task-row:hover .sub-check { border-color: var(--text3); }
-  .sub-text { font-size: 13px; color: var(--text); flex: 1; line-height: 1.3; }
   .sub-task-row.done-sub .sub-text { text-decoration: line-through; color: var(--text3); }
+  .sub-text { font-size: 13px; color: var(--text); flex: 1; line-height: 1.3; min-width:0; word-break:break-word; }
 
   /* PANEL INNER TABS */
   .panel-inner-tab { flex:1; background:transparent; border:none; border-bottom:2.5px solid transparent; margin-bottom:-1.5px; padding:7px 12px; font-size:12px; font-weight:600; letter-spacing:0.4px; color:var(--text2); cursor:pointer; font-family:'DM Sans',sans-serif; transition:color 0.15s,border-color 0.15s; text-transform:uppercase; }
@@ -1050,34 +1051,147 @@ function renderTasks(list,cid,countId){
         const cls=diffH<0?'overdue':diffH<24?'soon':'';
         dueBadge=`<span class="due-badge ${cls}">📅 ${fmtDue(t.dueDate,t.dueTime)}</span>`;
       }
-      const descHtml=t.desc?`<div class="task-desc">${linkify(t.desc)}</div>`:'';
+      // ── Task display ─────────────────────────────────────────────────────
       const hasTaskSteps=t.steps&&t.steps.length>0;
       const taskStepsDone=hasTaskSteps?t.steps.filter(s=>s.done).length:0;
       const taskExpanded=t._expanded||false;
-      const CHEVRON='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
-      const LIST_ICO='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
-      const taskStepProg=hasTaskSteps?'<button class="task-steps-toggle" data-list="'+list+'" data-id="'+t.id+'" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation();toggleTaskSteps(this.dataset.list,+this.dataset.id)" title="Toggle sub-tasks">'+LIST_ICO+'<span class="step-progress" style="background:none;border:none;padding:0">'+taskStepsDone+'/'+t.steps.length+'</span><span style="transition:transform 0.15s;display:inline-flex;transform:'+(taskExpanded?'rotate(90deg)':'rotate(0deg)')+'">'+CHEVRON+'</span></button>':'';
-  d.style.cursor='default';
-      d.innerHTML=`<div style="display:flex;align-items:center;gap:6px">
-        <button class="sq-btn done-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="completeTask('${list}',${t.id})" title="Mark done"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-        <button class="sq-btn ${isP?'star-active':''}" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleStar('${list}',${t.id})" title="Top priority">${isP?'<svg width="14" height="14" viewBox="0 0 24 24" fill="#d97706" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'}</button>
-        <button class="sq-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit('${list}',${t.id})" title="Edit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-        <span class="task-text" style="cursor:default">${esc(t.text)}${t.isWin?'<span style="font-size:11px;color:var(--amber);margin-left:4px">🏆</span>':''}</span>${taskStepProg}
-        <button class="sq-btn del-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delTask('${list}',${t.id})" title="Delete"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
-      </div>
-      ${descHtml}${dueBadge?'<div class="task-meta">'+dueBadge+'</div>':''}` ;
-      // Append sub-task rows via DOM — only if expanded
+      const CHK='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      const EDIT='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+      const DEL='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+      const STARF='<svg width="14" height="14" viewBox="0 0 24 24" fill="#d97706" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+      const STARE='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+      const LICO='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
+      const CHEV='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+      const CW='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+      // Description with Read More toggle (1 line truncated)
+      // description built via DOM below
+
+      // Sub-task toggle pill
+      const stepToggle=hasTaskSteps?'<button class="task-steps-toggle" data-list="'+list+'" data-id="'+t.id+'" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation();toggleTaskSteps(this.dataset.list,+this.dataset.id)"><span style="display:inline-flex;transition:transform 0.15s;transform:'+(taskExpanded?'rotate(90deg)':'rotate(0deg)')+'">'+CHEV+'</span>'+LICO+'<span>'+taskStepsDone+'/'+t.steps.length+'</span></button>':'';
+
+      d.style.cursor='default';
+      d.style.flexDirection='column';
+      d.style.alignItems='stretch';
+
+      // Row 1: title + buttons
+      const row1=document.createElement('div');
+      row1.style.cssText='display:flex;align-items:flex-start;gap:6px';
+      // Build buttons via DOM to avoid quote nesting issues
+      const nameSpanT=document.createElement('span');
+      nameSpanT.className='task-text';
+      nameSpanT.style.cssText='cursor:default;flex:1;min-width:0';
+      nameSpanT.innerHTML=esc(t.text)+(t.isWin?'<span style="font-size:11px;color:var(--amber);margin-left:4px">🏆</span>':'');
+      const btnGroup=document.createElement('div');
+      btnGroup.style.cssText='display:flex;align-items:center;gap:4px;flex-shrink:0';
+      // Delete
+      const bDel=document.createElement('button');
+      bDel.className='sq-btn del-btn';bDel.style.cssText='margin-left:0';bDel.innerHTML=DEL;bDel.title='Delete';
+      bDel.addEventListener('mousedown',function(e){e.stopPropagation();});
+      bDel.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+      bDel.addEventListener('click',function(e){e.stopPropagation();delTask(list,t.id);});
+      // Star
+      const bStar=document.createElement('button');
+      bStar.className='sq-btn'+(isP?' star-active':'');bStar.innerHTML=isP?STARF:STARE;bStar.title='Star';
+      bStar.addEventListener('mousedown',function(e){e.stopPropagation();});
+      bStar.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+      bStar.addEventListener('click',function(e){e.stopPropagation();toggleStar(list,t.id);});
+      // Edit
+      const bEdit=document.createElement('button');
+      bEdit.className='sq-btn';bEdit.innerHTML=EDIT;bEdit.title='Edit';
+      bEdit.addEventListener('mousedown',function(e){e.stopPropagation();});
+      bEdit.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+      bEdit.addEventListener('click',function(e){e.stopPropagation();openEdit(list,t.id);});
+      // Done
+      const bDone=document.createElement('button');
+      bDone.className='sq-btn done-btn';bDone.innerHTML=CHK;bDone.title='Done';
+      bDone.addEventListener('mousedown',function(e){e.stopPropagation();});
+      bDone.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+      bDone.addEventListener('click',function(e){e.stopPropagation();completeTask(list,t.id);});
+      btnGroup.appendChild(bDel);btnGroup.appendChild(bStar);btnGroup.appendChild(bEdit);btnGroup.appendChild(bDone);
+      row1.appendChild(nameSpanT);row1.appendChild(btnGroup);
+      d.appendChild(row1);
+
+      // Row 2: description (if any)
+      if(t.desc){
+        const descWrap=document.createElement('div');
+        descWrap.className='task-desc-wrap';
+        descWrap.id='tdesc_'+t.id;
+        const descSpan=document.createElement('span');
+        descSpan.className='task-desc-text clamp1';
+        descSpan.innerHTML=linkify(t.desc);
+        const rmBtn=document.createElement('button');
+        rmBtn.className='read-more-btn';
+        rmBtn.textContent='Read more';
+        rmBtn.addEventListener('click',function(e){e.stopPropagation();toggleDesc('tdesc_'+t.id);});
+        descWrap.appendChild(descSpan);
+        descWrap.appendChild(rmBtn);
+        d.appendChild(descWrap);
+      }
+
+      // Row 3: due badge (if any)
+      if(dueBadge){
+        const meta=document.createElement('div');
+        meta.className='task-meta';
+        meta.innerHTML=dueBadge;
+        d.appendChild(meta);
+      }
+
+      // Row 4: sub-task toggle (if any)
+      if(hasTaskSteps){
+        const togWrap=document.createElement('div');
+        togWrap.style.cssText='margin-top:4px';
+        const togBtn=document.createElement('button');
+        togBtn.className='task-steps-toggle';
+        togBtn.dataset.list=list;
+        togBtn.dataset.id=t.id;
+        togBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
+        togBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+        togBtn.addEventListener('click',function(e){e.stopPropagation();toggleTaskSteps(list,t.id);});
+        const chevSpan=document.createElement('span');
+        chevSpan.style.cssText='display:inline-flex;transition:transform 0.15s;transform:'+(taskExpanded?'rotate(90deg)':'rotate(0deg)');
+        chevSpan.innerHTML=CHEV;
+        togBtn.appendChild(chevSpan);
+        const licoSpan=document.createElement('span');
+        licoSpan.style.cssText='display:inline-flex';
+        licoSpan.innerHTML=LICO;
+        togBtn.appendChild(licoSpan);
+        const countSpan=document.createElement('span');
+        countSpan.textContent=taskStepsDone+'/'+t.steps.length;
+        togBtn.appendChild(countSpan);
+        togWrap.appendChild(togBtn);
+        d.appendChild(togWrap);
+      }
+
+      // Sub-task rows (if expanded)
       if(hasTaskSteps&&taskExpanded){
         const stepsWrap=document.createElement('div');
-        stepsWrap.style.cssText='margin-top:8px;display:flex;flex-direction:column;gap:5px';
-        const CHECK_W='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        stepsWrap.style.cssText='margin-top:6px;display:flex;flex-direction:column;gap:5px';
         t.steps.forEach(function(s,si){
           const row=document.createElement('div');
           row.className='sub-task-row'+(s.done?' done-sub':'');
-          row.innerHTML='<div class="sub-check">'+(s.done?CHECK_W:'')+'</div><span class="sub-text">'+linkify(s.text)+'</span>';
-          row.addEventListener('mousedown',function(e){e.stopPropagation();});
-          row.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
-          row.addEventListener('click',function(e){e.stopPropagation();if(e.target.closest('a'))return;toggleTaskStep(list,t.id,si);});
+          const nameSpan=document.createElement('span');
+          nameSpan.className='sub-text';
+          nameSpan.innerHTML=linkify(s.text);
+          const btnDel=document.createElement('button');
+          btnDel.className='sq-btn del-btn';
+          btnDel.style.cssText='margin-left:0;flex-shrink:0';
+          btnDel.innerHTML=DEL;
+          btnDel.title='Remove sub-task';
+          btnDel.addEventListener('mousedown',function(e){e.stopPropagation();});
+          btnDel.addEventListener('click',function(e){e.stopPropagation();removeTaskStepFromList(list,t.id,si);});
+          const btnDone=document.createElement('button');
+          btnDone.className='sq-btn done-btn';
+          btnDone.style.cssText='flex-shrink:0';
+          btnDone.innerHTML=CW;
+          btnDone.title='Toggle done';
+          btnDone.addEventListener('mousedown',function(e){e.stopPropagation();});
+          btnDone.addEventListener('click',function(e){e.stopPropagation();toggleTaskStep(list,t.id,si);});
+          row.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 10px';
+          row.appendChild(nameSpan);
+          row.appendChild(btnDel);
+          row.appendChild(btnDone);
+          row.addEventListener('click',function(e){if(e.target.closest('button')||e.target.closest('a'))return;toggleTaskStep(list,t.id,si);});
           stepsWrap.appendChild(row);
         });
         d.appendChild(stepsWrap);
@@ -1179,38 +1293,104 @@ function renderHabitGroup(group){
     const hasSteps=h.steps&&h.steps.length>0;
     const stepsDone=hasSteps?h.steps.filter(s=>s.done).length:0;
     const stepsTotal=hasSteps?h.steps.length:0;
-    const LIST_ICO='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
-    const CHEVRON_I='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
-    const stepsProg=hasSteps?'<button class="task-steps-toggle" data-hid="'+h.id+'" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation();toggleSteps(+this.dataset.hid)" title="Toggle steps">'+LIST_ICO+'<span class="step-progress" style="background:none;border:none;padding:0">'+stepsDone+'/'+stepsTotal+'</span><span style="transition:transform 0.15s;display:inline-flex;transform:'+(h._expanded?'rotate(90deg)':'rotate(0deg)')+'">'+CHEVRON_I+'</span></button>':'';
-    const expandBtn='';
-    // Build sq-btn action buttons
-    let sqActionBtns='';
-    const CHECK='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-    const SKIP_X='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-    const EDIT_I='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
-    const DEL_I='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+    // ── Habit display ─────────────────────────────────────────────────────
+    const CHK_H='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    const EDIT_H='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    const DEL_H='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+    const SKIP_H='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    const LICO_H='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
+    const CHEV_H='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    const CW_H='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+    // Streak pill — shown inline before action buttons
+    const streakPill=h.streak>0
+      ?'<span class="streak-badge" style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px">🔥 '+h.streak+'</span>'
+      :'<span class="streak-badge broken" style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px">💔 '+h.streak+'</span>';
+
+    // Action buttons: Del | Edit | Done (or Undo/UndoSkip)
+    let doneBtn='';
     if(h.done){
-      sqActionBtns='<button class="sq-btn is-done" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit('+h.id+')" title="Undo">'+CHECK+'</button>';
+      doneBtn='<button class="sq-btn is-done" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit('+h.id+')" title="Undo">'+CHK_H+'</button>';
     } else if(h.skipped){
-      sqActionBtns='<button class="sq-btn skip-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="unskipHabit('+h.id+')" title="Undo skip" style="color:var(--red);border-color:var(--red)">'+CHECK+'</button>';
+      doneBtn='<button class="sq-btn skip-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="unskipHabit('+h.id+')" title="Undo skip" style="color:var(--red);border-color:var(--red)">'+CHK_H+'</button>';
     } else {
-      sqActionBtns='<button class="sq-btn done-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit('+h.id+')" title="Done">'+CHECK+'</button>'+'<button class="sq-btn skip-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="skipHabit('+h.id+')" title="Skip">'+SKIP_X+'</button>';
+      doneBtn='<button class="sq-btn done-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="toggleHabit('+h.id+')" title="Done">'+CHK_H+'</button>'+
+              '<button class="sq-btn skip-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="skipHabit('+h.id+')" title="Skip">'+SKIP_H+'</button>';
     }
-    // Build steps HTML using DOM (no nested template literals)
-    const metaRow=(dayPills||streakLabel)?'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:4px;padding-left:2px">'+(dayPills?dayPills+' ':'')+streakLabel+'</div>':'';
-    const headerHtml='<div style="display:flex;align-items:center;gap:6px">'+sqActionBtns+'<span style="flex:1;font-size:14px;color:var(--text);min-width:0;word-break:break-word;'+(h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':'')+'">'+(h.text?esc(h.text):'')+'</span>'+stepsProg+'<button class="sq-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit(&apos;habits&apos;,'+h.id+')" title="Edit">'+EDIT_I+'</button>'+'<button class="sq-btn del-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit('+h.id+')" title="Delete">'+DEL_I+'</button></div>'+metaRow;
-    d.innerHTML=headerHtml;
+
+    // Row 1: title + streak + buttons
+    const hRow1=document.createElement('div');
+    hRow1.style.cssText='display:flex;align-items:flex-start;gap:6px';
+    hRow1.innerHTML=
+      '<span style="flex:1;font-size:14px;color:var(--text);min-width:0;word-break:break-word;'+(h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':'')+'">'+(h.text?esc(h.text):'')+'</span>'+
+      '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'+
+        streakPill+
+        '<button class="sq-btn del-btn" style="margin-left:0" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="delHabit('+h.id+')" title="Delete">'+DEL_H+'</button>'+
+        '<button class="sq-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit(&apos;habits&apos;,'+h.id+')" title="Edit">'+EDIT_H+'</button>'+
+        doneBtn+
+      '</div>';
+    d.appendChild(hRow1);
+
+    // Row 2: day pills (if not all days)
+    if(dayPills){
+      const dpRow=document.createElement('div');
+      dpRow.style.cssText='display:flex;gap:4px;flex-wrap:wrap;margin-top:4px';
+      dpRow.innerHTML=dayPills;
+      d.appendChild(dpRow);
+    }
+
+    // Row 3: sub-task toggle (if has steps)
+    if(hasSteps){
+      const togBtn=document.createElement('button');
+      togBtn.className='task-steps-toggle';
+      togBtn.style.cssText='margin-top:4px';
+      togBtn.dataset.hid=h.id;
+      togBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
+      togBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+      togBtn.addEventListener('click',function(e){e.stopPropagation();toggleSteps(h.id);});
+      const chevSpan=document.createElement('span');
+      chevSpan.style.cssText='display:inline-flex;transition:transform 0.15s;transform:'+(h._expanded?'rotate(90deg)':'rotate(0deg)');
+      chevSpan.innerHTML=CHEV_H;
+      togBtn.appendChild(chevSpan);
+      const liSpan=document.createElement('span');
+      liSpan.style.cssText='display:inline-flex';
+      liSpan.innerHTML=LICO_H;
+      togBtn.appendChild(liSpan);
+      const cntSpan=document.createElement('span');
+      cntSpan.textContent=stepsDone+'/'+stepsTotal;
+      togBtn.appendChild(cntSpan);
+      d.appendChild(togBtn);
+    }
+
+    // Sub-task rows (if expanded)
     if(hasSteps&&h._expanded){
       const stepsWrap=document.createElement('div');
-      stepsWrap.style.cssText='margin-top:8px;display:flex;flex-direction:column;gap:5px';
-      const CHECK_W='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      stepsWrap.style.cssText='margin-top:6px;display:flex;flex-direction:column;gap:5px';
       h.steps.forEach(function(s,si){
         const row=document.createElement('div');
         row.className='sub-task-row'+(s.done?' done-sub':'');
-        row.innerHTML='<div class="sub-check">'+(s.done?CHECK_W:'')+'</div><span class="sub-text">'+linkify(s.text)+'</span>';
-        row.addEventListener('mousedown',function(e){e.stopPropagation();});
-        row.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
-        row.addEventListener('click',function(e){e.stopPropagation();if(e.target.closest('a'))return;toggleStep(h.id,si);});
+        row.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 10px';
+        const nameSpan=document.createElement('span');
+        nameSpan.className='sub-text';
+        nameSpan.innerHTML=linkify(s.text);
+        const btnDel=document.createElement('button');
+        btnDel.className='sq-btn del-btn';
+        btnDel.style.cssText='margin-left:0;flex-shrink:0';
+        btnDel.innerHTML=DEL_H;
+        btnDel.title='Remove';
+        btnDel.addEventListener('mousedown',function(e){e.stopPropagation();});
+        btnDel.addEventListener('click',function(e){e.stopPropagation();removeHabitStep(h.id,si);});
+        const btnDone=document.createElement('button');
+        btnDone.className='sq-btn done-btn';
+        btnDone.style.cssText='flex-shrink:0';
+        btnDone.innerHTML=CW_H;
+        btnDone.title='Toggle done';
+        btnDone.addEventListener('mousedown',function(e){e.stopPropagation();});
+        btnDone.addEventListener('click',function(e){e.stopPropagation();toggleStep(h.id,si);});
+        row.appendChild(nameSpan);
+        row.appendChild(btnDel);
+        row.appendChild(btnDone);
+        row.addEventListener('click',function(e){if(e.target.closest('button')||e.target.closest('a'))return;toggleStep(h.id,si);});
         stepsWrap.appendChild(row);
       });
       d.appendChild(stepsWrap);
@@ -1503,6 +1683,25 @@ function addTaskEditStep(){
 }
 function removeTaskEditStep(i){_taskEditSteps.splice(i,1);renderTaskEditSteps();}
 
+function removeTaskStepFromList(list,taskId,stepIdx){
+  const t=tasks[list].find(t=>t.id===taskId);if(!t||!t.steps)return;
+  t.steps.splice(stepIdx,1);
+  save(SK.tasks,tasks);render();
+}
+function removeHabitStep(habitId,stepIdx){
+  const h=habits.find(h=>h.id===habitId);if(!h||!h.steps)return;
+  h.steps.splice(stepIdx,1);
+  save(SK.habits,habits);renderHabits();
+}
+function toggleDesc(id){
+  const wrap=document.getElementById(id);if(!wrap)return;
+  const span=wrap.querySelector('.task-desc-text');
+  const btn=wrap.querySelector('.read-more-btn');
+  if(!span||!btn)return;
+  const collapsed=span.classList.contains('clamp1');
+  span.classList.toggle('clamp1',!collapsed);
+  btn.textContent=collapsed?'Read less':'Read more';
+}
 function toggleTaskSteps(list,taskId){
   const t=tasks[list].find(t=>t.id===taskId);if(!t)return;
   t._expanded=!t._expanded;
