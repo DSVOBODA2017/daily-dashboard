@@ -832,7 +832,7 @@ const todayKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}
 document.getElementById('dayName').textContent=DAYS[now.getDay()].toUpperCase();
 document.getElementById('dateStr').textContent=`${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
 
-const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme',lastDate:'dpd_lastDate',presets:'dpd_presets',wins:'dpd_wins'};
+const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme',lastDate:'dpd_lastDate',presets:'dpd_presets',wins:'dpd_wins',vis:'dpd_vis'};
 const GS_URL='https://script.google.com/macros/s/AKfycbxAjW1BJFW-1GgmC1vx5H_RGa7ltPcaPLNWJY4YvQSwRf1jQxx2aCCRFwqMwr77Jibt1Q/exec';
 let _syncPending={};
 let _syncTimer=null;
@@ -987,7 +987,7 @@ let history=[];
 let settings={wStart:'09:00',wEnd:'17:00',pStart:'05:00',pEnd:'22:00',priv:false,reflOpen:false};
 let refl={grateful:'',accomplish:'',overall:''};
 let nextId={work:10,personal:10,habits:10};
-let vis={work:true,personal:true};
+let vis={work:true,personal:true}; // default; overridden in initApp
 let wins=[];
 let showCompletedHabits={work:false,personal:false};
 let showAllHabits={work:false,personal:false};
@@ -1919,6 +1919,8 @@ function toggleCol(which){
   const grid=document.getElementById('listsGrid');
   grid.setAttribute('data-cols',count);
   grid.style.display=count===0?'none':'grid';
+  // Persist visibility state across sessions and devices
+  save(SK.vis,vis);
 }
 
 let dragSrc=null;
@@ -2767,6 +2769,27 @@ function initApp(){
   ]);
   history=load(SK.history,[]);
   wins=load(SK.wins,[]);
+
+  // Restore column visibility from last session
+  const savedVis=load(SK.vis,null);
+  if(savedVis){
+    vis=savedVis;
+    // Apply visibility to DOM
+    const colMap={work:'colWork',personal:'colPersonal'};
+    const tabMap={work:'tW',personal:'tP'};
+    Object.keys(colMap).forEach(k=>{
+      const col=document.getElementById(colMap[k]);
+      const tab=document.getElementById(tabMap[k]);
+      if(col) col.style.display=vis[k]?'':'none';
+      if(tab) tab.classList.toggle('on',!!vis[k]);
+    });
+    const count=Object.values(vis).filter(Boolean).length;
+    const grid=document.getElementById('listsGrid');
+    if(grid){
+      grid.setAttribute('data-cols',count);
+      grid.style.display=count===0?'none':'grid';
+    }
+  }
   settings=load(SK.settings,{wStart:'09:00',wEnd:'17:00',pStart:'05:00',pEnd:'22:00',priv:false,reflOpen:false});
   refl=load(SK.refl,{grateful:'',accomplish:'',overall:''});
   nextId=load(SK.nextid,{work:10,personal:10,habits:10});
