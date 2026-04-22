@@ -1382,17 +1382,75 @@ function renderHabitGroup(group){
               '<button class="sq-btn skip-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="skipHabit('+h.id+')" title="Skip">'+SKIP_H+'</button>';
     }
 
-    // Row 1: title + streak + buttons
+    // Row 1: title + streak + buttons — built via DOM to avoid onclick string issues
     const hRow1=document.createElement('div');
     hRow1.style.cssText='display:flex;align-items:flex-start;gap:6px';
-    hRow1.innerHTML=
-      '<span style="flex:1;font-size:14px;color:var(--text);min-width:0;word-break:break-word;'+(h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':'')+'">'+(h.text?esc(h.text):'')+'</span>'+
-      '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0">'+
-        streakPill+
-
-        '<button class="sq-btn" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openEdit(&apos;habits&apos;,'+h.id+')" title="Edit">'+EDIT_H+'</button>'+
-        doneBtn+
-      '</div>';
+    // Title span
+    const hTitleSpan=document.createElement('span');
+    hTitleSpan.style.cssText='flex:1;font-size:14px;color:var(--text);min-width:0;word-break:break-word;'+(h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':'');
+    hTitleSpan.innerHTML=h.text?esc(h.text):'';
+    // Button group
+    const hBtnGrp=document.createElement('div');
+    hBtnGrp.style.cssText='display:flex;align-items:center;gap:4px;flex-shrink:0';
+    // Streak pill
+    const hStreakSpan=document.createElement('span');
+    hStreakSpan.className=h.streak>0?'streak-badge':'streak-badge broken';
+    hStreakSpan.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:3px 9px';
+    hStreakSpan.textContent=(h.streak>0?'🔥 ':'💔 ')+h.streak;
+    // Edit button
+    const hEditBtn=document.createElement('button');
+    hEditBtn.className='sq-btn';
+    hEditBtn.innerHTML=EDIT_H;
+    hEditBtn.title='Edit';
+    hEditBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
+    hEditBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+    hEditBtn.addEventListener('click',function(e){e.stopPropagation();openEdit('habits',h.id);});
+    // Done / Undo / Skip buttons
+    if(h.done){
+      const hDoneBtn=document.createElement('button');
+      hDoneBtn.className='sq-btn is-done';
+      hDoneBtn.innerHTML=CHK_H;
+      hDoneBtn.title='Undo';
+      hDoneBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
+      hDoneBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+      hDoneBtn.addEventListener('click',function(e){e.stopPropagation();toggleHabit(h.id);});
+      hBtnGrp.appendChild(hStreakSpan);
+      hBtnGrp.appendChild(hEditBtn);
+      hBtnGrp.appendChild(hDoneBtn);
+    } else if(h.skipped){
+      const hUndoBtn=document.createElement('button');
+      hUndoBtn.className='sq-btn skip-btn';
+      hUndoBtn.innerHTML=CHK_H;
+      hUndoBtn.title='Undo skip';
+      hUndoBtn.style.cssText='color:var(--red);border-color:var(--red)';
+      hUndoBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
+      hUndoBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+      hUndoBtn.addEventListener('click',function(e){e.stopPropagation();unskipHabit(h.id);});
+      hBtnGrp.appendChild(hStreakSpan);
+      hBtnGrp.appendChild(hEditBtn);
+      hBtnGrp.appendChild(hUndoBtn);
+    } else {
+      const hDoneBtn=document.createElement('button');
+      hDoneBtn.className='sq-btn done-btn';
+      hDoneBtn.innerHTML=CHK_H;
+      hDoneBtn.title='Done';
+      hDoneBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
+      hDoneBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+      hDoneBtn.addEventListener('click',function(e){e.stopPropagation();toggleHabit(h.id);});
+      const hSkipBtn=document.createElement('button');
+      hSkipBtn.className='sq-btn skip-btn';
+      hSkipBtn.innerHTML=SKIP_H;
+      hSkipBtn.title='Skip';
+      hSkipBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
+      hSkipBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+      hSkipBtn.addEventListener('click',function(e){e.stopPropagation();skipHabit(h.id);});
+      hBtnGrp.appendChild(hStreakSpan);
+      hBtnGrp.appendChild(hEditBtn);
+      hBtnGrp.appendChild(hDoneBtn);
+      hBtnGrp.appendChild(hSkipBtn);
+    }
+    hRow1.appendChild(hTitleSpan);
+    hRow1.appendChild(hBtnGrp);
     d.appendChild(hRow1);
 
     // Row 2: day pills (if not all days)
