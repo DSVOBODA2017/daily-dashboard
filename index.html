@@ -891,6 +891,13 @@ function flushToCloud(){
 }
 
 function loadFromCloud(){
+  // ── Step 1: Render immediately from localStorage ─────────────────────────
+  // The UI appears instantly — no waiting for the network
+  initApp();
+
+  // ── Step 2: Sync from cloud in the background ─────────────────────────────
+  // Only bother if we haven't hit the failure threshold
+  if(_syncFailCount>=_MAX_SYNC_FAILS) return;
   showSyncStatus('Syncing...');
   fetch(GS_URL+'?action=getAll&_='+Date.now(),{
     cache:'no-store',
@@ -899,23 +906,31 @@ function loadFromCloud(){
   .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
   .then(res=>{
     if(res.success&&res.data&&Object.keys(res.data).length>0){
+      // Write cloud data to localStorage then re-render silently
+      let changed=false;
       Object.keys(res.data).forEach(k=>{
         const v=res.data[k];
-        if(v!=null&&v!=='') try{localStorage.setItem(k,String(v));}catch{}
+        if(v!=null&&v!==''){
+          const existing=localStorage.getItem(k);
+          if(existing!==String(v)){
+            try{localStorage.setItem(k,String(v));}catch{}
+            changed=true;
+          }
+        }
       });
       showSyncStatus('Synced ✓');
+      _syncFailCount=0;
+      // Only re-render if cloud had newer data
+      if(changed) initApp();
     } else {
       showSyncStatus('Ready');
     }
-    _syncFailCount=0;
     setTimeout(()=>showSyncStatus(''),2000);
-    initApp();
   })
   .catch(()=>{
-    // Load failed — just use local data, no console spam
-    showSyncStatus('Offline');
+    _syncFailCount++;
+    showSyncStatus(_syncFailCount<_MAX_SYNC_FAILS?'Offline':'');
     setTimeout(()=>showSyncStatus(''),2000);
-    initApp();
   });
 }
 
