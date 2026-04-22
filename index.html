@@ -1165,12 +1165,30 @@ function renderTasks(list,cid,countId){
         descWrap.appendChild(rmBtn);
         d.appendChild(descWrap);
         // After render: hide Read More if text fits on one line
-        requestAnimationFrame(function(){
-          if(descSpan.scrollHeight<=descSpan.clientHeight+2){
-            rmBtn.style.display='none';
+        // Use ResizeObserver to re-evaluate clamping as layout changes
+        (function(){
+          function updateClamp(){
+            const expanded=descSpan.dataset.manualExpand==='1';
+            if(expanded) return; // user expanded it — don't auto-collapse
+            // Temporarily remove clamp to measure full height
             descSpan.classList.remove('clamp1');
+            const fullH=descSpan.scrollHeight;
+            descSpan.classList.add('clamp1');
+            const clampedH=descSpan.clientHeight;
+            const needsClamp=fullH>clampedH+2;
+            if(needsClamp){
+              rmBtn.style.display='';
+            } else {
+              descSpan.classList.remove('clamp1');
+              rmBtn.style.display='none';
+            }
           }
-        });
+          requestAnimationFrame(updateClamp);
+          if(window.ResizeObserver){
+            const ro=new ResizeObserver(updateClamp);
+            ro.observe(descWrap);
+          }
+        })();
       }
 
       // Row 3: due badge (if any)
@@ -1747,8 +1765,15 @@ function toggleDesc(id){
   const btn=wrap.querySelector('.read-more-btn');
   if(!span||!btn)return;
   const collapsed=span.classList.contains('clamp1');
-  span.classList.toggle('clamp1',!collapsed);
-  btn.textContent=collapsed?'Read less':'Read more';
+  if(collapsed){
+    span.classList.remove('clamp1');
+    span.dataset.manualExpand='1';
+    btn.textContent='Read less';
+  } else {
+    span.classList.add('clamp1');
+    delete span.dataset.manualExpand;
+    btn.textContent='Read more';
+  }
 }
 function toggleTaskSteps(list,taskId){
   const t=tasks[list].find(t=>t.id===taskId);if(!t)return;
