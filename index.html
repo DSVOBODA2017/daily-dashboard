@@ -278,8 +278,9 @@
   .sync-icon-btn:hover { color:var(--text); border-color:var(--text2); }
   .sync-icon-btn.spinning svg { animation:spin 1s linear infinite; }
   @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-  #syncToast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--surface); border:1px solid var(--border2); border-radius:20px; padding:8px 18px; font-size:12px; font-weight:500; color:var(--text); box-shadow:0 4px 16px rgba(0,0,0,0.12); opacity:0; transition:opacity 0.25s,transform 0.25s; pointer-events:none; z-index:9999; white-space:nowrap; }
-  #syncToast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  #syncToast { position:fixed; top:16px; right:16px; left:auto; transform:translateY(-8px); background:#1a1a1a; color:#fff; border-radius:12px; padding:10px 16px; font-size:12px; font-weight:500; font-family:'DM Sans',sans-serif; box-shadow:0 4px 20px rgba(0,0,0,0.25); opacity:0; transition:opacity 0.3s,transform 0.3s; pointer-events:none; z-index:99999; white-space:nowrap; display:flex; align-items:center; gap:8px; }
+  [data-theme="dark"] #syncToast { background:#e5e5e5; color:#111; }
+  #syncToast.show { opacity:1; transform:translateY(0); }
   .theme-btn:hover { border-color: var(--text2); color: var(--text); }
 
   .section-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 4px; }
@@ -2740,5 +2741,6 @@ function initApp(){
 // Boot — pull from cloud first, then init
 loadFromCloud();
 </script>
+<div id="syncToast" role="status" aria-live="polite"></div>
 </body>
 </html>
