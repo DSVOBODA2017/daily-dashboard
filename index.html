@@ -1166,6 +1166,7 @@ function renderTasks(list,cid,countId){
         togWrap.style.cssText='margin-top:4px';
         const togBtn=document.createElement('button');
         togBtn.className='task-steps-toggle';
+        togBtn.style.cssText='display:inline-flex;width:auto';
         togBtn.dataset.list=list;
         togBtn.dataset.id=t.id;
         togBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
@@ -1356,18 +1357,13 @@ function renderHabitGroup(group){
     d.appendChild(hRow1);
 
     // Row 2: day pills (if not all days)
-    if(dayPills){
-      const dpRow=document.createElement('div');
-      dpRow.style.cssText='display:flex;gap:4px;flex-wrap:wrap;margin-top:4px';
-      dpRow.innerHTML=dayPills;
-      d.appendChild(dpRow);
-    }
+
 
     // Row 3: sub-task toggle (if has steps)
     if(hasSteps){
       const togBtn=document.createElement('button');
       togBtn.className='task-steps-toggle';
-      togBtn.style.cssText='margin-top:4px';
+      togBtn.style.cssText='margin-top:4px;display:inline-flex;width:auto;align-self:flex-start';
       togBtn.dataset.hid=h.id;
       togBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
       togBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
