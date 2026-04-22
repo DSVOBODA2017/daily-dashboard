@@ -962,7 +962,7 @@ function showSyncStatus(msg){
   if(btn) btn.classList.toggle('spinning',spinning);
   // Only show toast for success states
   if(toast&&(msg==='Saved ✓'||msg==='Synced ✓')){
-    toast.textContent='✓ '+msg;
+    toast.textContent=msg;
     toast.classList.add('show');
     setTimeout(()=>toast.classList.remove('show'),2500);
   }
