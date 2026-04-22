@@ -172,6 +172,7 @@
   .task-steps-toggle:active { transform:scale(0.97); }
 
   .habit-item.skipped { background: var(--red-bg); border-color: var(--red); opacity:0.75; }
+  .habit-item.off-day { opacity:0.5; border-style:dashed; }
   .streak-badge.broken { background: var(--red-bg); color: var(--red); border-color: #fca5a5; }
   .zero-state { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; min-height:120px; text-align:center; padding: 24px 16px; color: var(--text3); font-size: 12px; border: 1px dashed var(--border2); border-radius: var(--radius-sm); }
   .zero-state svg { margin-bottom:8px; opacity:0.35; }
@@ -563,6 +564,7 @@
             <!-- Habits content -->
             <div id="workPanelHabits" style="display:none;flex:1;flex-direction:column">
               <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+                <button class="chip" id="workHabitShowAllBtn" onclick="toggleShowAllHabits('work')" style="font-size:11px">All days</button>
                 <button class="chip on" id="workHabitToggleBtn" onclick="toggleCompletedHabits('work')" style="font-size:11px">Outstanding</button>
                 <button class="chip-primary" onclick="openAdd('habits','work')" style="font-size:11px">+ Add</button>
               </div>
@@ -605,6 +607,7 @@
             <!-- Habits content -->
             <div id="personalPanelHabits" style="display:none;flex:1;flex-direction:column">
               <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+                <button class="chip" id="personalHabitShowAllBtn" onclick="toggleShowAllHabits('personal')" style="font-size:11px">All days</button>
                 <button class="chip on" id="personalHabitToggleBtn" onclick="toggleCompletedHabits('personal')" style="font-size:11px">Outstanding</button>
                 <button class="chip-primary" onclick="openAdd('habits','personal')" style="font-size:11px">+ Add</button>
               </div>
@@ -983,6 +986,16 @@ let nextId={work:10,personal:10,habits:10};
 let vis={work:true,personal:true};
 let wins=[];
 let showCompletedHabits={work:false,personal:false};
+let showAllHabits={work:false,personal:false};
+
+function toggleShowAllHabits(group){
+  showAllHabits[group]=!showAllHabits[group];
+  const btn=document.getElementById(group+'HabitShowAllBtn');
+  if(btn){
+    btn.classList.toggle('on',showAllHabits[group]);
+  }
+  renderHabitGroup(group);
+}
 
 let addTarget='',editTarget={list:'',id:0};
 let timerTotal=25*60,timerLeft=25*60,timerRunning=false,timerIv=null;
@@ -1332,20 +1345,29 @@ function renderHabitGroup(group){
   el.innerHTML='';
   const todayDow=new Date().getDay();
   const groupHabits=habits.filter(h=>(h.group||'personal')===group);
-  const doneCount=groupHabits.filter(h=>h.done||h.skipped).length;
+  // Only count habits scheduled for today
+  const todayHabits=groupHabits.filter(h=>{
+    const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
+    return activeDays.includes(todayDow);
+  });
+  const doneCount=todayHabits.filter(h=>h.done||h.skipped).length;
   const countEl=document.getElementById(group+'HabitCount');
-  if(countEl) countEl.textContent=`${doneCount}/${groupHabits.length} done`;
+  if(countEl) countEl.textContent=`${doneCount}/${todayHabits.length}`;
   const showDone=showCompletedHabits[group];
+  const showAll=showAllHabits[group];
   const visible=groupHabits.filter(h=>{
     const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
-    if(!activeDays.includes(todayDow))return false;
-    if(showDone) return h.done||h.skipped;
-    return !h.done&&!h.skipped;
+    const isToday=activeDays.includes(todayDow);
+    if(!showAll&&!isToday)return false;
+    if(showDone) return h.done||h.skipped||!isToday;
+    return (!h.done&&!h.skipped)||!isToday;
   });
 
   visible.forEach(h=>{
     const d=document.createElement('div');
-    d.className='habit-item'+(h.done?' done':h.skipped?' skipped':'');
+    const hActiveDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
+    const hIsToday=hActiveDays.includes(todayDow);
+    d.className='habit-item'+(h.done?' done':h.skipped?' skipped':(!hIsToday?' off-day':''));
     const activeDays2=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
     const isAllDays=activeDays2.length===7;
     const dayLabels=['Su','Mo','Tu','We','Th','Fr','Sa'];
@@ -1388,7 +1410,11 @@ function renderHabitGroup(group){
     // Title span
     const hTitleSpan=document.createElement('span');
     hTitleSpan.style.cssText='flex:1;font-size:14px;color:var(--text);min-width:0;word-break:break-word;'+(h.done?'text-decoration:line-through;opacity:0.6':h.skipped?'opacity:0.5':'');
-    hTitleSpan.innerHTML=h.text?esc(h.text):'';
+    const dayLabelsShort=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const hDayLabel=!hIsToday&&showAll
+      ?'<span style="font-size:10px;color:var(--text3);margin-left:6px;font-weight:400">('+((h.days&&h.days.length<7)?h.days.map(d=>dayLabelsShort[d]).join(', '):'Every day')+')</span>'
+      :'';
+    hTitleSpan.innerHTML=(h.text?esc(h.text):'')+hDayLabel;
     // Button group
     const hBtnGrp=document.createElement('div');
     hBtnGrp.style.cssText='display:flex;align-items:center;gap:4px;flex-shrink:0';
