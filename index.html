@@ -2663,13 +2663,22 @@ function buildHistory(){
       row.innerHTML=`
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0">
           <span class="history-date" style="flex-shrink:0">${h.date}${ts?' '+ts:''}</span>
-          <span style="font-size:15px;flex-shrink:0">${me[h.mood]||'—'}</span>
-          <span style="font-size:15px;flex-shrink:0">${de[h.day]||'—'}</span>
+          <span style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0"><span style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px">Mood</span><span style="font-size:15px">${me[h.mood]||'—'}</span></span>
+          <span style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0"><span style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px">Day</span><span style="font-size:15px">${de[h.day]||'—'}</span></span>
           <button class="chip-secondary" style="margin-left:auto;font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openEditEntry(${realIdx},event)">Edit</button>
         </div>
-        ${h.grateful?`<div class="history-quote" style="padding-left:4px">"${esc(h.grateful)}"</div>`:''}
-        ${h.accomplish?`<div style="font-size:11px;color:var(--text2);padding-left:4px;word-break:break-word">🏅 ${esc(h.accomplish)}</div>`:''}
-        ${h.overall?`<div style="font-size:11px;color:var(--text2);padding-left:4px;font-style:italic;word-break:break-word">💬 ${esc(h.overall)}</div>`:''}
+        ${h.grateful?`<div style="margin-top:6px">
+          <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Gratitude</div>
+          <div class="history-quote" style="font-size:11px;word-break:break-word">"${esc(h.grateful)}"</div>
+        </div>`:''}
+        ${h.accomplish?`<div style="margin-top:6px">
+          <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Greatest Accomplishment Today</div>
+          <div style="font-size:11px;color:var(--text2);word-break:break-word">🏅 ${esc(h.accomplish)}</div>
+        </div>`:''}
+        ${h.overall?`<div style="margin-top:6px">
+          <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Overall Day</div>
+          <div style="font-size:11px;color:var(--text2);font-style:italic;word-break:break-word">💬 ${esc(h.overall)}</div>
+        </div>`:''}
       `;
       body.appendChild(row);
     });
