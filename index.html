@@ -837,11 +837,13 @@ const GS_URL='https://script.google.com/macros/s/AKfycbxAjW1BJFW-1GgmC1vx5H_RGa7
 let _syncPending={};
 let _syncTimer=null;
 let _syncing=false;
+let _suppressSync=false; // set true during initApp to prevent spurious sync queuing
 
 function load(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
 
 function save(k,v){
   try{localStorage.setItem(k,JSON.stringify(v));}catch{}
+  if(_suppressSync) return; // don't queue during init/restore
   _syncPending[k]=JSON.stringify(v);
   if(_syncTimer)clearTimeout(_syncTimer);
   _syncTimer=setTimeout(flushToCloud,1500);
@@ -2757,6 +2759,7 @@ function toggleTheme(){
 
 
 function initApp(){
+  _suppressSync=true; // suppress sync queueing during init
   // Load all state first
   tasks=load(SK.tasks,{
     work:[{id:1,text:'Review project brief',star:true},{id:2,text:'Team standup',star:true},{id:3,text:'Send weekly report',star:false}],
@@ -2870,6 +2873,7 @@ function initApp(){
   updateProg();
   updatePersonalProg();
   render();
+  _suppressSync=false; // re-enable sync after init completes
   timerReset();
   startDropAnim();
 }
