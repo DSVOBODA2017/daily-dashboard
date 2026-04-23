@@ -134,7 +134,7 @@
   .btn-xs { padding: 3px 8px; font-size: 11px; }
 
   /* TASK ITEMS */
-  .task-item { background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; display: flex; align-items: center; gap: 6px; margin-bottom: 5px; cursor: grab; user-select: none; transition: border-color 0.15s, opacity 0.15s, transform 0.1s; touch-action: none; }
+  .task-item { background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px; display: flex; align-items: center; gap: 6px; margin-bottom: 5px; cursor: grab; user-select: none; transition: border-color 0.15s, opacity 0.15s, transform 0.1s; touch-action: pan-y; }
   .task-item:hover { border-color: var(--border2); }
   .task-item:active { cursor: grabbing; }
   .task-item.priority { border-left: 3px solid var(--amber); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
@@ -239,7 +239,7 @@
 
 
   /* SUB-TASK ROWS */
-  .sub-task-row { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: var(--surface); border: 1.5px solid var(--border2); border-radius: 7px; transition: background 0.12s, border-color 0.12s; cursor:default; }
+  .sub-task-row { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: var(--surface); border: 1.5px solid var(--border2); border-radius: 7px; transition: background 0.12s, border-color 0.12s; cursor:default; touch-action: pan-y; }
   .sub-task-row:hover { border-color: var(--text3); }
   .sub-task-row.done-sub { opacity: 0.55; }
   .sub-task-row.done-sub .sub-text { text-decoration: line-through; color: var(--text3); }
@@ -262,10 +262,10 @@
   .tab.active { background: var(--text); color: var(--bg); }
 
   /* HISTORY */
-  .history-list { max-height: 360px; overflow-y: auto; }
-  .history-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; }
+  .history-list { max-height: 500px; overflow-y: auto; overflow-x: hidden; }
+  .history-row { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 12px; min-width: 0; overflow: hidden; }
   .history-date { color: var(--text3); font-family: 'DM Mono', monospace; font-size: 11px; min-width: 72px; }
-  .history-quote { flex: 1; color: var(--text2); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-quote { color: var(--text2); font-style: italic; word-break: break-word; overflow: hidden; }
 
   /* MODAL */
   .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.42); z-index: 500; align-items: center; justify-content: center; }
@@ -1979,9 +1979,10 @@ function addDrag(el,list){
 
   el.addEventListener('touchmove',e=>{
     if(holdTimer){clearTimeout(holdTimer);holdTimer=null;}
+    // Only block scroll when a drag is actually in progress
     if(!touchDragSrc)return;
     didDrag=true;
-    e.preventDefault();
+    e.preventDefault(); // only called when dragging — safe to block scroll here
     const t=e.touches[0];
     if(touchGhost){
       touchGhost.style.left=(t.clientX+12)+'px';
@@ -2639,17 +2640,16 @@ function buildHistory(){
       const ts=h.timestamp?new Date(h.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
       const row=document.createElement('div');
       row.className='history-row';
-      row.style.cssText='flex-direction:column;align-items:stretch;padding:8px 0;gap:4px';
       row.innerHTML=`
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="history-date">${h.date}${ts?' '+ts:''}</span>
-          <span style="font-size:15px">${me[h.mood]||'—'}</span>
-          <span style="font-size:15px">${de[h.day]||'—'}</span>
-          <span class="history-quote">${h.grateful?'"'+esc(h.grateful.slice(0,45))+(h.grateful.length>45?'…':'')+'"':''}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0">
+          <span class="history-date" style="flex-shrink:0">${h.date}${ts?' '+ts:''}</span>
+          <span style="font-size:15px;flex-shrink:0">${me[h.mood]||'—'}</span>
+          <span style="font-size:15px;flex-shrink:0">${de[h.day]||'—'}</span>
           <button class="chip-secondary" style="margin-left:auto;font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openEditEntry(${realIdx},event)">Edit</button>
         </div>
-        ${h.accomplish?`<div style="font-size:11px;color:var(--text2);padding-left:4px">🏅 ${esc(h.accomplish.slice(0,60))}${h.accomplish.length>60?'…':''}</div>`:''}
-        ${h.overall?`<div style="font-size:11px;color:var(--text2);padding-left:4px;font-style:italic">💬 ${esc(h.overall.slice(0,80))}${h.overall.length>80?'…':''}</div>`:''}
+        ${h.grateful?`<div class="history-quote" style="padding-left:4px">"${esc(h.grateful)}"</div>`:''}
+        ${h.accomplish?`<div style="font-size:11px;color:var(--text2);padding-left:4px;word-break:break-word">🏅 ${esc(h.accomplish)}</div>`:''}
+        ${h.overall?`<div style="font-size:11px;color:var(--text2);padding-left:4px;font-style:italic;word-break:break-word">💬 ${esc(h.overall)}</div>`:''}
       `;
       body.appendChild(row);
     });
