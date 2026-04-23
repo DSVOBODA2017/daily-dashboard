@@ -745,10 +745,10 @@
     <div class="section-lbl" style="margin-bottom:4px">Why was this a win? <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
     <textarea id="winReason" placeholder="Describe the impact, what you learned, or why it matters..." style="width:100%;min-height:80px;resize:vertical;margin-bottom:14px"></textarea>
     <div class="row" style="justify-content:space-between;gap:7px">
-      <button class="chip-secondary" onclick="skipWin()">Skip — just complete</button>
+      <button class="chip-secondary" onclick="closeWinModal()" style="font-size:12px">Cancel</button>
       <div class="row" style="gap:7px">
-        <button class="chip-secondary" onclick="closeWinModal()">Cancel</button>
-        <button class="chip-primary" onclick="confirmWin()">Save as Win</button>
+        <button class="chip-secondary" onclick="confirmWin()" style="font-size:12px;color:var(--amber);border-color:var(--amber)">Save as Win 🏆</button>
+        <button class="chip-primary" onclick="skipWin()" style="font-size:12px">Complete</button>
       </div>
     </div>
   </div>
@@ -1602,13 +1602,8 @@ function completeTask(list,id){
       _pendingWin={list,id,text:t.text,desc:t.desc||''};
       document.getElementById('winTaskPreview').textContent=t.text;
       document.getElementById('winReason').value='';
-      if(t.isWin){
-        // Pre-flagged as win — open modal directly
-        document.getElementById('winModal').classList.add('open');
-      } else {
-        // Not flagged — still ask but default is just complete
-        document.getElementById('winModal').classList.add('open');
-      }
+      // Always ask — Complete is primary, Save as Win is secondary
+      document.getElementById('winModal').classList.add('open');
       return;
     }
   }
@@ -2431,9 +2426,10 @@ function logEntry(){
   const dayR=+(document.querySelector('input[name=dayR]:checked')?.value||0);
   if(!mood||!dayR){alert('Please set your mood and day rating before saving.');return;}
   const entry={date:todayKey,mood,day:dayR,grateful:refl.grateful,accomplish:refl.accomplish,overall:refl.overall||'',timestamp:Date.now()};
-  const idx=history.findIndex(h=>h.date===todayKey);
-  if(idx>=0)history[idx]=entry;else history.push(entry);
-  history.sort((a,b)=>a.date.localeCompare(b.date));
+  // Always push a new entry — allows multiple entries per day
+  history.push(entry);
+  // Sort by date then timestamp so entries appear in chronological order
+  history.sort((a,b)=>a.date.localeCompare(b.date)||((a.timestamp||0)-(b.timestamp||0)));
   save(SK.history,history);updateMetrics();
 
   // Clear the form after saving
@@ -2662,22 +2658,26 @@ function buildHistory(){
       row.className='history-row'+(h.mood?' mood-'+h.mood:'');
       row.innerHTML=`
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0">
-          <span class="history-date" style="flex-shrink:0">${h.date}${ts?' '+ts:''}</span>
-          <span style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0"><span style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px">Mood</span><span style="font-size:15px">${me[h.mood]||'—'}</span></span>
-          <span style="display:inline-flex;align-items:center;gap:3px;flex-shrink:0"><span style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px">Day</span><span style="font-size:15px">${de[h.day]||'—'}</span></span>
-          <button class="chip-secondary" style="margin-left:auto;font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openEditEntry(${realIdx},event)">Edit</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+            <span class="history-date" style="font-size:11px;font-weight:600;color:var(--text)">${h.date}${ts?' · '+ts:''}</span>
+            <button class="chip-secondary" style="font-size:10px;padding:2px 8px;flex-shrink:0" onclick="openEditEntry(${realIdx},event)">Edit</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+            <span style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0"><span style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px">Mood</span><span style="font-size:16px">${me[h.mood]||'—'}</span></span>
+            <span style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0"><span style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px">Day</span><span style="font-size:16px">${de[h.day]||'—'}</span></span>
+          </div>
         </div>
-        ${h.grateful?`<div style="margin-top:6px">
-          <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Gratitude</div>
-          <div class="history-quote" style="font-size:11px;word-break:break-word">"${esc(h.grateful)}"</div>
+        ${h.grateful?`<div style="margin-top:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Gratitude</div>
+          <div class="history-quote" style="font-size:12px;color:var(--text);word-break:break-word">"${esc(h.grateful)}"</div>
         </div>`:''}
-        ${h.accomplish?`<div style="margin-top:6px">
-          <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Greatest Accomplishment Today</div>
-          <div style="font-size:11px;color:var(--text2);word-break:break-word">🏅 ${esc(h.accomplish)}</div>
+        ${h.accomplish?`<div style="margin-top:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Greatest Accomplishment Today</div>
+          <div style="font-size:12px;color:var(--text);word-break:break-word">🏅 ${esc(h.accomplish)}</div>
         </div>`:''}
-        ${h.overall?`<div style="margin-top:6px">
-          <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">Overall Day</div>
-          <div style="font-size:11px;color:var(--text2);font-style:italic;word-break:break-word">💬 ${esc(h.overall)}</div>
+        ${h.overall?`<div style="margin-top:8px">
+          <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Overall Day</div>
+          <div style="font-size:12px;color:var(--text);font-style:italic;word-break:break-word">💬 ${esc(h.overall)}</div>
         </div>`:''}
       `;
       body.appendChild(row);
