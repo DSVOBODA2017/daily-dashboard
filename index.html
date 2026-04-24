@@ -2993,7 +2993,19 @@ function switchPanelTab(group, tab){
   habitBtn.classList.toggle('active',tab==='habits');
 }
 
-// switchTab consolidated above
+function switchTab(which){
+  ['charts','history','wins','habitMetrics'].forEach(t=>{
+    const panelId='panel'+t.charAt(0).toUpperCase()+t.slice(1);
+    const tabId='tab'+t.charAt(0).toUpperCase()+t.slice(1);
+    const panel=document.getElementById(panelId);
+    const tab=document.getElementById(tabId);
+    if(panel) panel.style.display=t===which?'':'none';
+    if(tab) tab.classList.toggle('active',t===which);
+  });
+  if(which==='history') buildHistory();
+  if(which==='wins') buildWins();
+  if(which==='habitMetrics') buildHabitMetrics();
+}
 
 function switchMainTab(which){
   document.getElementById('mainPanelDashboard').style.display=which==='dashboard'?'':'none';
