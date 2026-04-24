@@ -2699,7 +2699,7 @@ function buildHabitMetrics(){
     const barWrap=document.createElement('div');
     barWrap.style.cssText='display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;width:80px';
     const pct=document.createElement('span');
-    pct.style.cssText='font-size:12px;font-weight:700;color:'+consistencyColor(consistency);
+    pct.style.cssText='font-size:12px;font-weight:700;color:'+(hColor||'var(--text2)');
     pct.textContent=consistency+'%';
     const barTrack=document.createElement('div');
     barTrack.style.cssText='width:100%;height:4px;background:var(--surface2);border-radius:4px;overflow:hidden';
