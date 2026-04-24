@@ -2600,236 +2600,177 @@ function buildHabitMetrics(){
     el.appendChild(hdr);
 
     groupHabits.forEach(h=>{
-      const card=document.createElement('div');
-      card.style.cssText='background:var(--surface);border:1.5px solid var(--border2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px';
-
       // ── Compute stats ────────────────────────────────────────
       const log=h.log||[];
       const createdAt=h.createdAt||todayKey;
       const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
-
-      // Count scheduled days since creation
       const startDate=new Date(createdAt);
       const today=new Date(todayKey);
-      let scheduledDays=0,doneDays=0,skipDays=0,missedDays=0;
+      let scheduledDays=0,doneDays=0,missedDays=0;
       const logMap={};
       log.forEach(e=>{logMap[e.date]=e;});
-
       for(let d=new Date(startDate);d<=today;d.setDate(d.getDate()+1)){
         const dow=d.getDay();
         if(!activeDays.includes(dow)) continue;
         scheduledDays++;
         const dk=d.toISOString().slice(0,10);
-        if(logMap[dk]){
-          if(logMap[dk].status==='done') doneDays++;
-          else missedDays++; // skipped counts as missed
-        } else {
-          if(dk!==todayKey) missedDays++;
-        }
+        if(logMap[dk]){if(logMap[dk].status==='done') doneDays++;else missedDays++;}
+        else if(dk!==todayKey) missedDays++;
       }
       const completionRate=scheduledDays>1?Math.round((doneDays/(scheduledDays-1))*100):0;
       const missedRate=scheduledDays>1?Math.round((missedDays/(scheduledDays-1))*100):0;
       const bestStreak=h.bestStreak||h.streak||0;
-
-      // Health status
-      let health='',healthColor='';
+      let health='',healthColor='',healthBg='';
       if(scheduledDays>=7){
-        if(completionRate>=70){health='Strong';healthColor='var(--green)';}
-        else if(completionRate>=40){health='At Risk';healthColor='var(--amber)';}
-        else{health='Struggling';healthColor='var(--red)';}
+        if(completionRate>=70){health='Strong';healthColor='#15803d';healthBg='rgba(22,163,74,0.12)';}
+        else if(completionRate>=40){health='At Risk';healthColor='#b45309';healthBg='rgba(217,119,6,0.12)';}
+        else{health='Struggling';healthColor='#dc2626';healthBg='rgba(239,68,68,0.12)';}
       }
-
-      // Best time recommendation
       const doneLogs=log.filter(e=>e.status==='done'&&e.ts);
       let timeRec='';
       if(doneLogs.length>=3){
-        const hours=doneLogs.map(e=>{
-          const d=new Date(e.ts);
-          return d.getHours()+(d.getMinutes()/60);
-        });
-        hours.sort((a,b)=>a-b);
-        // Find the densest cluster of 3+ completions within a 2-hour window
-        let bestClusterAvg=null,bestClusterCount=0;
-        for(let i=0;i<hours.length;i++){
-          const window=hours.filter(h=>Math.abs(h-hours[i])<=1.5);
-          if(window.length>=bestClusterCount||(window.length===bestClusterCount&&bestClusterAvg===null)){
-            bestClusterCount=window.length;
-            bestClusterAvg=window.reduce((a,b)=>a+b,0)/window.length;
-          }
+        const hrs=doneLogs.map(e=>{const dd=new Date(e.ts);return dd.getHours()+(dd.getMinutes()/60);});
+        hrs.sort((a,b)=>a-b);
+        let bAvg=null,bCnt=0;
+        for(let i=0;i<hrs.length;i++){
+          const win=hrs.filter(x=>Math.abs(x-hrs[i])<=1.5);
+          if(win.length>bCnt){bCnt=win.length;bAvg=win.reduce((a,b)=>a+b,0)/win.length;}
         }
-        if(bestClusterAvg!==null&&bestClusterCount>=3){
-          const hr=Math.floor(bestClusterAvg);
-          const min=Math.round((bestClusterAvg-hr)*60);
-          const ampm=hr>=12?'PM':'AM';
-          const hr12=hr%12||12;
-          const minStr=String(min).padStart(2,'0');
-          timeRec=`Around ${hr12}:${minStr} ${ampm} (based on ${bestClusterCount} completions)`;
+        if(bAvg!==null&&bCnt>=3){
+          const hr=Math.floor(bAvg),mn=Math.round((bAvg-hr)*60);
+          const ap=hr>=12?'PM':'AM',h12=hr%12||12;
+          timeRec=`${h12}:${String(mn).padStart(2,'0')} ${ap}`;
         }
       }
 
-      // ── Row 1: name + health badge ───────────────────────────
-      const row1=document.createElement('div');
-      row1.style.cssText='display:flex;align-items:flex-start;justify-content:space-between;gap:8px';
+      // ── Card ─────────────────────────────────────────────────
+      const card=document.createElement('div');
+      card.style.cssText='background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden';
+
+      // Top bar: name + health badge
+      const topBar=document.createElement('div');
+      topBar.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 12px;'+(health?'border-bottom:1px solid var(--border)':'');
       const nameEl=document.createElement('span');
-      nameEl.style.cssText='font-size:14px;font-weight:600;color:var(--text);flex:1;min-width:0;word-break:break-word';
+      nameEl.style.cssText='font-size:13px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
       nameEl.textContent=h.text||'';
-      row1.appendChild(nameEl);
+      topBar.appendChild(nameEl);
       if(health){
         const badge=document.createElement('span');
-        badge.style.cssText='font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+healthColor+';color:#fff;flex-shrink:0;white-space:nowrap';
+        badge.style.cssText='font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:'+healthBg+';color:'+healthColor+';border:1px solid '+healthColor+'40;flex-shrink:0;white-space:nowrap';
         badge.textContent=health;
-        row1.appendChild(badge);
+        topBar.appendChild(badge);
       }
-      card.appendChild(row1);
+      if(timeRec){
+        const timePill=document.createElement('span');
+        timePill.style.cssText='font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(59,130,246,0.1);color:var(--blue);border:1px solid rgba(59,130,246,0.2);flex-shrink:0;white-space:nowrap';
+        timePill.textContent='💡 '+timeRec;
+        timePill.title='Suggested best time based on your completion patterns. Actual time may differ.';
+        topBar.appendChild(timePill);
+      }
+      card.appendChild(topBar);
 
-      // ── Row 2: stats grid ────────────────────────────────────
-      const stats=document.createElement('div');
-      stats.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:6px';
+      // Stats row: 4 compact inline stats
+      const statsRow=document.createElement('div');
+      statsRow.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)';
       [
-        {val:h.streak||0,lbl:'Current streak'},
-        {val:bestStreak,lbl:'Best streak'},
-        {val:completionRate+'%',lbl:'Completion'},
+        {val:h.streak||0,lbl:'Streak',unit:'d'},
+        {val:bestStreak,lbl:'Best',unit:'d'},
+        {val:completionRate+'%',lbl:'Done'},
         {val:missedRate+'%',lbl:'Missed'},
-      ].forEach(s=>{
+      ].forEach((s,i)=>{
         const box=document.createElement('div');
-        box.style.cssText='background:var(--surface2);border-radius:8px;padding:8px 6px;text-align:center';
-        box.innerHTML='<div style="font-size:16px;font-weight:700;color:var(--text)">'+s.val+'</div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px">'+s.lbl+'</div>';
-        stats.appendChild(box);
+        box.style.cssText='padding:7px 4px;text-align:center'+(i<3?';border-right:1px solid var(--border)':'');
+        box.innerHTML='<div style="font-size:15px;font-weight:700;color:var(--text);line-height:1">'+s.val+'</div>'
+          +'<div style="font-size:8px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px">'+s.lbl+'</div>';
+        statsRow.appendChild(box);
       });
-      card.appendChild(stats);
+      card.appendChild(statsRow);
 
-      // ── Row 3: Calendar heatmap (5 weeks × 7 days) ──────────
+      // Heatmap: compact 5-week grid
       const calWrap=document.createElement('div');
-      calWrap.style.cssText='display:flex;flex-direction:column;gap:8px';
+      calWrap.style.cssText='padding:8px 10px;display:flex;flex-direction:column;gap:4px';
 
-      // Header: label + date range
-      const calHdr=document.createElement('div');
-      calHdr.style.cssText='display:flex;align-items:center;justify-content:space-between';
-      const calLbl=document.createElement('span');
-      calLbl.style.cssText='font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.6px';
-      calLbl.textContent='35-Day Activity';
-      // Date range label
+      // Date range
       const rangeStart=new Date(today);rangeStart.setDate(rangeStart.getDate()-34);
       const fmtD=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      const calRange=document.createElement('span');
-      calRange.style.cssText='font-size:10px;color:var(--text3)';
-      calRange.textContent=fmtD(rangeStart)+' – '+fmtD(today);
-      calHdr.appendChild(calLbl);calHdr.appendChild(calRange);
-      calWrap.appendChild(calHdr);
+      const calMeta=document.createElement('div');
+      calMeta.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:2px';
+      calMeta.innerHTML='<span style="font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Activity</span>'
+        +'<span style="font-size:8px;color:var(--text3)">'+fmtD(rangeStart)+' – '+fmtD(today)+'</span>';
+      calWrap.appendChild(calMeta);
 
-      // Day-of-week labels
-      const dowLabels=document.createElement('div');
-      dowLabels.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:3px';
-      ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(dl=>{
+      // DoW headers
+      const dowRow=document.createElement('div');
+      dowRow.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:2px';
+      ['S','M','T','W','T','F','S'].forEach(dl=>{
         const lbl=document.createElement('div');
-        lbl.style.cssText='font-size:8px;font-weight:600;color:var(--text3);text-align:center;padding-bottom:2px;letter-spacing:0.3px';
+        lbl.style.cssText='font-size:7px;font-weight:600;color:var(--text3);text-align:center';
         lbl.textContent=dl;
-        dowLabels.appendChild(lbl);
+        dowRow.appendChild(lbl);
       });
-      calWrap.appendChild(dowLabels);
+      calWrap.appendChild(dowRow);
 
-      // Build 5-week grid aligned to Sun-Sat
-      // Find the Sunday on or before (today - 34 days)
+      // Grid
       const gridStart=new Date(rangeStart);
-      gridStart.setDate(gridStart.getDate()-gridStart.getDay()); // back to Sunday
-
-      const grid=document.createElement('div');
-      grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:3px';
-
+      gridStart.setDate(gridStart.getDate()-gridStart.getDay());
       const gridEnd=new Date(gridStart);gridEnd.setDate(gridEnd.getDate()+34);
+      const grid=document.createElement('div');
+      grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:2px';
 
       for(let d=new Date(gridStart);d<=gridEnd;d.setDate(d.getDate()+1)){
         const cell=document.createElement('div');
         const dk=d.toISOString().slice(0,10);
         const dow=d.getDay();
         const scheduled=activeDays.includes(dow);
-        const isFuture=d>today;
         const isToday2=dk===todayKey;
         const inRange=d>=rangeStart&&d<=today;
-
-        // Base cell style
-        cell.style.cssText='aspect-ratio:1;border-radius:5px;position:relative;transition:transform 0.1s';
-
+        cell.style.cssText='aspect-ratio:1;border-radius:3px;cursor:default;transition:transform 0.1s';
         if(!inRange&&!isToday2){
-          // Outside our display range — show faint placeholder
-          cell.style.background='var(--surface2)';
-          cell.style.opacity='0.3';
+          cell.style.background='var(--surface2)';cell.style.opacity='0.2';
         } else if(!scheduled){
-          // Not scheduled this day — subtle background, clearly intentional
-          cell.style.background='var(--surface2)';
-          cell.style.opacity='0.4';
-          cell.title='Not scheduled';
+          cell.style.background='var(--surface2)';cell.style.opacity='0.25';
         } else if(isToday2){
-          // Today — pulsing ring
           cell.style.background='var(--surface3)';
-          cell.style.border='2px solid var(--blue)';
-          cell.style.boxSizing='border-box';
+          cell.style.outline='1.5px solid var(--blue)';
+          cell.style.outlineOffset='-1px';
           cell.title='Today';
-        } else if(isFuture){
-          cell.style.background='var(--surface2)';
-          cell.title='Future';
         } else if(logMap[dk]&&logMap[dk].status==='done'){
           cell.style.background='#16a34a';
-          cell.style.boxShadow='0 1px 4px rgba(22,163,74,0.35)';
-          cell.title=dk+' · Done ✓';
-        } else if(logMap[dk]&&logMap[dk].status==='skip'){
-          // Skipped = missed in metrics view
+          cell.title=dk+' · Done';
+        } else if(inRange&&!logMap[dk]||logMap[dk]&&logMap[dk].status!=='done'){
           cell.style.background='transparent';
-          cell.style.border='1.5px solid var(--text3)';
-          cell.style.boxSizing='border-box';
-          cell.style.opacity='0.6';
-          cell.title=dk+' · Missed';
-        } else {
-          // Scheduled but missed — outlined cell, clearly visible
-          cell.style.background='transparent';
-          cell.style.border='1.5px solid var(--text3)';
-          cell.style.boxSizing='border-box';
-          cell.style.opacity='0.6';
+          cell.style.outline='1px solid var(--text3)';
+          cell.style.outlineOffset='-1px';
+          cell.style.opacity='0.5';
           cell.title=dk+' · Missed';
         }
-
-        // Hover effect
-        cell.addEventListener('mouseenter',function(){this.style.transform='scale(1.15)';});
+        cell.addEventListener('mouseenter',function(){this.style.transform='scale(1.2)';});
         cell.addEventListener('mouseleave',function(){this.style.transform='scale(1)';});
         grid.appendChild(cell);
       }
       calWrap.appendChild(grid);
 
-      // Legend — clean pill style
+      // Inline legend
       const legend=document.createElement('div');
-      legend.style.cssText='display:flex;gap:12px;flex-wrap:wrap;margin-top:2px';
-      [
-        {bg:'#16a34a',shadow:'rgba(22,163,74,0.3)',label:'Done'},
-        {border:'var(--text3)',label:'Missed'},
-        {bg:'var(--surface2)',label:'Not scheduled'},
-      ].forEach(item=>{
+      legend.style.cssText='display:flex;gap:8px;margin-top:3px;flex-wrap:wrap';
+      [{bg:'#16a34a',lbl:'Done'},{outline:'var(--text3)',lbl:'Missed'},{bg:'var(--surface2)',lbl:'Off day'}].forEach(item=>{
         const li=document.createElement('span');
-        li.style.cssText='display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);font-weight:500';
-        const swatch=document.createElement('span');
-        swatch.style.cssText='width:12px;height:12px;border-radius:3px;display:inline-block;flex-shrink:0';
-        if(item.bg) swatch.style.background=item.bg;
-        if(item.shadow) swatch.style.boxShadow='0 1px 4px '+item.shadow;
-        if(item.border){ swatch.style.border='1.5px solid '+item.border; swatch.style.background='transparent'; }
-        li.appendChild(swatch);
-        li.appendChild(document.createTextNode(item.label));
+        li.style.cssText='display:inline-flex;align-items:center;gap:3px;font-size:8px;color:var(--text3)';
+        const sw=document.createElement('span');
+        sw.style.cssText='width:8px;height:8px;border-radius:2px;display:inline-block;flex-shrink:0';
+        if(item.bg){sw.style.background=item.bg;}
+        if(item.outline){sw.style.outline='1px solid '+item.outline;sw.style.outlineOffset='-1px';sw.style.background='transparent';}
+        li.appendChild(sw);li.appendChild(document.createTextNode(item.lbl));
         legend.appendChild(li);
       });
       calWrap.appendChild(legend);
       card.appendChild(calWrap);
 
-      // ── Row 4: time recommendation ───────────────────────────
-      if(timeRec){
-        const rec=document.createElement('div');
-        rec.style.cssText='background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2)';
-        rec.innerHTML='<span style="font-weight:700;color:var(--blue)">💡 Best time:</span> '+timeRec+'<div style="font-size:10px;color:var(--text3);margin-top:3px">Based on when you logged completion — actual time may differ</div>';
-        card.appendChild(rec);
-      }
-
-      // ── Row 5: Struggling warning ─────────────────────────────
+      // Struggling warning — inline subtle note
       if(health==='Struggling'&&scheduledDays>=14){
         const warn=document.createElement('div');
-        warn.style.cssText='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2)';
-        warn.innerHTML='<span style="font-weight:700;color:var(--red)">⚠️ Low completion:</span> This habit has been completed less than 40% of the time over '+scheduledDays+' scheduled days. Consider adjusting the schedule, difficulty, or whether this habit still fits your goals.';
+        warn.style.cssText='margin:0 10px 8px;padding:6px 8px;background:rgba(239,68,68,0.07);border-radius:6px;font-size:10px;color:var(--text2);border-left:2px solid #ef4444';
+        warn.innerHTML='<strong style="color:#dc2626">Low completion</strong> — consider adjusting the schedule or frequency.';
         card.appendChild(warn);
       }
 
