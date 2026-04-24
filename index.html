@@ -588,6 +588,7 @@
               <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:6px;flex-wrap:wrap">
                 <button class="chip" id="workHabitShowAllBtn" onclick="toggleShowAllHabits('work')" style="font-size:11px">All days</button>
                 <button class="chip on" id="workHabitToggleBtn" onclick="toggleCompletedHabits('work')" style="font-size:11px">Outstanding</button>
+                <button class="chip" id="workHabitSkippedBtn" onclick="toggleSkippedHabits('work')" style="font-size:11px">Skipped</button>
                 <button class="chip-primary" onclick="openAdd('habits','work')" style="font-size:11px">+ Add</button>
               </div>
               <div id="workHabitList" class="task-list-container" style="flex:1"></div>
@@ -631,6 +632,7 @@
               <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:6px;flex-wrap:wrap">
                 <button class="chip" id="personalHabitShowAllBtn" onclick="toggleShowAllHabits('personal')" style="font-size:11px">All days</button>
                 <button class="chip on" id="personalHabitToggleBtn" onclick="toggleCompletedHabits('personal')" style="font-size:11px">Outstanding</button>
+                <button class="chip" id="personalHabitSkippedBtn" onclick="toggleSkippedHabits('personal')" style="font-size:11px">Skipped</button>
                 <button class="chip-primary" onclick="openAdd('habits','personal')" style="font-size:11px">+ Add</button>
               </div>
               <div id="personalHabitList" class="task-list-container" style="flex:1"></div>
@@ -649,6 +651,7 @@
               <button class="tab active" id="tabCharts" onclick="switchTab('charts')">Charts</button>
               <button class="tab" id="tabHistory" onclick="switchTab('history')">Log</button>
               <button class="tab" id="tabWins" onclick="switchTab('wins')">Wins</button>
+              <button class="tab" id="tabHabitMetrics" onclick="switchTab('habitMetrics')">Habits</button>
             </div>
           </div>
           <div id="panelCharts">
@@ -669,6 +672,9 @@
           </div>
           <div id="panelWins" style="display:none">
             <div class="history-list" id="winsRows"></div>
+          </div>
+          <div id="panelHabitMetrics" style="display:none">
+            <div id="habitMetricsContent" style="display:flex;flex-direction:column;gap:12px;padding-top:8px"></div>
           </div>
         </div>
       </div>
@@ -856,6 +862,7 @@ let _syncPending={};
 let _syncTimer=null;
 let _syncing=false;
 let _suppressSync=false; // set true during initApp to prevent spurious sync queuing
+let _userTriggeredSync=false; // only show toast when user triggered the sync
 
 function load(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
 
@@ -863,6 +870,7 @@ function save(k,v){
   try{localStorage.setItem(k,JSON.stringify(v));}catch{}
   if(_suppressSync) return; // don't queue during init/restore
   _syncPending[k]=JSON.stringify(v);
+  _userTriggeredSync=true; // user made a change
   if(_syncTimer)clearTimeout(_syncTimer);
   _syncTimer=setTimeout(flushToCloud,1500);
 }
@@ -935,7 +943,7 @@ function loadFromCloud(){
   // ── Step 2: Sync from cloud in the background ─────────────────────────────
   // Only bother if we haven't hit the failure threshold
   if(_syncFailCount>=_MAX_SYNC_FAILS) return;
-  showSyncStatus('Syncing...');
+  // Background startup sync — silent, no toast
   fetch(GS_URL+'?action=getAll&_='+Date.now(),{
     cache:'no-store',
     headers:{'Content-Type':'text/plain'}
@@ -955,23 +963,23 @@ function loadFromCloud(){
           }
         }
       });
-      showSyncStatus('Synced ✓');
+      // silent — background load complete
       _syncFailCount=0;
       // Only re-render if cloud had newer data
       if(changed) initApp();
     } else {
-      showSyncStatus('Ready');
+      // silent — ready
     }
     setTimeout(()=>showSyncStatus(''),2000);
   })
   .catch(()=>{
     _syncFailCount++;
-    showSyncStatus(_syncFailCount<_MAX_SYNC_FAILS?'Offline':'');
-    setTimeout(()=>showSyncStatus(''),2000);
+    // silent background load failure — local data still intact
   });
 }
 
 function syncNow(){
+  _userTriggeredSync=true;
   // Force push all current state to cloud immediately
   const allKeys=Object.values(SK);
   allKeys.forEach(k=>{
@@ -986,17 +994,18 @@ function showSyncStatus(msg){
   const btn=document.getElementById('syncIconBtn');
   const toast=document.getElementById('syncToast');
   const spinning=msg==='Saving...'||msg==='Syncing...';
+  // Only spin and toast for user-triggered actions
+  if(!_userTriggeredSync) return;
   if(btn) btn.classList.toggle('spinning',spinning);
-  // Only show toast for success states
   if(toast&&(msg==='Saved ✓'||msg==='Synced ✓')){
     toast.textContent=msg;
     toast.classList.add('show');
-    setTimeout(()=>toast.classList.remove('show'),2500);
+    setTimeout(()=>{toast.classList.remove('show');_userTriggeredSync=false;},2500);
   }
   if(toast&&msg==='Offline'){
     toast.textContent='Offline — saved locally';
     toast.classList.add('show');
-    setTimeout(()=>toast.classList.remove('show'),2500);
+    setTimeout(()=>{toast.classList.remove('show');_userTriggeredSync=false;},2500);
   }
 }
 
@@ -1009,7 +1018,19 @@ let refl={grateful:'',accomplish:'',overall:''};
 let nextId={work:10,personal:10,habits:10};
 let vis={work:true,personal:true}; // default; overridden in initApp
 let wins=[];
-let showCompletedHabits={work:false,personal:false};
+let showCompletedHabits={work:false,personal:false}; // shows done habits
+let showSkippedHabits={work:false,personal:false};   // shows skipped habits
+
+function toggleSkippedHabits(group){
+  // Mutually exclusive with showCompletedHabits
+  showSkippedHabits[group]=!showSkippedHabits[group];
+  if(showSkippedHabits[group]) showCompletedHabits[group]=false;
+  const skipBtn=document.getElementById(group+'HabitSkippedBtn');
+  const doneBtn=document.getElementById(group+'HabitToggleBtn');
+  if(skipBtn) skipBtn.classList.toggle('on', showSkippedHabits[group]);
+  if(doneBtn){ doneBtn.classList.toggle('on', false); }
+  renderHabitGroup(group);
+}
 let showAllHabits={work:false,personal:false};
 
 function toggleShowAllHabits(group){
@@ -1351,11 +1372,11 @@ function renderTasks(list,cid,countId){
 function toggleCompletedHabits(group){
   group=group||'personal';
   showCompletedHabits[group]=!showCompletedHabits[group];
+  if(showCompletedHabits[group]) showSkippedHabits[group]=false;
   const btn=document.getElementById(group+'HabitToggleBtn');
-  if(btn){
-    btn.textContent=showCompletedHabits[group]?'Done & Skipped':'Outstanding';
-    btn.className=showCompletedHabits[group]?'chip on':'chip';
-  }
+  const skipBtn=document.getElementById(group+'HabitSkippedBtn');
+  if(btn) btn.classList.toggle('on', showCompletedHabits[group]);
+  if(skipBtn) skipBtn.classList.toggle('on', false);
   renderHabitGroup(group);
 }
 
@@ -1378,13 +1399,15 @@ function renderHabitGroup(group){
   const countEl=document.getElementById(group+'HabitCount');
   if(countEl) countEl.textContent=`${doneCount}/${todayHabits.length}`;
   const showDone=showCompletedHabits[group];
+  const showSkipped=showSkippedHabits[group];
   const showAll=showAllHabits[group];
   const visible=groupHabits.filter(h=>{
     const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
     const isToday=activeDays.includes(todayDow);
     if(!showAll&&!isToday)return false;
-    if(showDone) return h.done||h.skipped||!isToday;
-    return (!h.done&&!h.skipped)||!isToday;
+    if(showDone) return h.done&&!h.skipped;
+    if(showSkipped) return h.skipped;
+    return (!h.done&&!h.skipped)||(showAll&&!isToday);
   });
 
   visible.forEach(h=>{
@@ -1480,13 +1503,6 @@ function renderHabitGroup(group){
       hBtnGrp.appendChild(hEditBtn);
       hBtnGrp.appendChild(hUndoBtn);
     } else {
-      const hDoneBtn=document.createElement('button');
-      hDoneBtn.className='sq-btn done-btn';
-      hDoneBtn.innerHTML=CHK_H;
-      hDoneBtn.title='Done';
-      hDoneBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
-      hDoneBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
-      hDoneBtn.addEventListener('click',function(e){e.stopPropagation();toggleHabit(h.id);});
       const hSkipBtn=document.createElement('button');
       hSkipBtn.className='sq-btn skip-btn';
       hSkipBtn.innerHTML=SKIP_H;
@@ -1494,10 +1510,17 @@ function renderHabitGroup(group){
       hSkipBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
       hSkipBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
       hSkipBtn.addEventListener('click',function(e){e.stopPropagation();skipHabit(h.id);});
+      const hDoneBtn=document.createElement('button');
+      hDoneBtn.className='sq-btn done-btn';
+      hDoneBtn.innerHTML=CHK_H;
+      hDoneBtn.title='Done';
+      hDoneBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
+      hDoneBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+      hDoneBtn.addEventListener('click',function(e){e.stopPropagation();toggleHabit(h.id);});
       hBtnGrp.appendChild(hStreakSpan);
       hBtnGrp.appendChild(hEditBtn);
-      hBtnGrp.appendChild(hDoneBtn);
       hBtnGrp.appendChild(hSkipBtn);
+      hBtnGrp.appendChild(hDoneBtn);
     }
     hRow1.appendChild(hTitleSpan);
     hRow1.appendChild(hBtnGrp);
@@ -1571,13 +1594,17 @@ function renderHabitGroup(group){
     const z=document.createElement('div');z.className='zero-state';
     z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>No ${group} habits yet — click + Add`;
     el.appendChild(z);
-  } else if(visible.length===0&&!showDone){
+  } else if(visible.length===0&&!showDone&&!showSkipped){
     const z=document.createElement('div');z.className='zero-state';
     z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/></svg>All ${group} habits done!`;
     el.appendChild(z);
   } else if(visible.length===0&&showDone){
     const z=document.createElement('div');z.className='zero-state';
     z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>No completed habits yet`;
+    el.appendChild(z);
+  } else if(visible.length===0&&showSkipped){
+    const z=document.createElement('div');z.className='zero-state';
+    z.innerHTML=`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 8v4l3 3"/></svg>No skipped habits`;
     el.appendChild(z);
   }
 }
@@ -1655,8 +1682,18 @@ function toggleHabit(id){
   h.skipped=false;
   if(h.done){
     if(h.lastDone!==todayKey){h.streak++;h.lastDone=todayKey;}
+    // Log completion timestamp
+    if(!h.log) h.log=[];
+    // Remove any existing entry for today then add new one
+    h.log=h.log.filter(e=>e.date!==todayKey);
+    h.log.push({date:todayKey,status:'done',ts:Date.now()});
+    if(h.log.length>365) h.log=h.log.slice(-365);
+    if(!h.createdAt) h.createdAt=todayKey;
+    if(h.streak>=(h.bestStreak||0)) h.bestStreak=h.streak;
   } else {
     if(h.lastDone===todayKey){h.streak=Math.max(0,h.streak-1);h.lastDone='';}
+    // Remove today's log entry on undo
+    if(h.log) h.log=h.log.filter(e=>e.date!==todayKey);
   }
   save(SK.habits,habits);renderHabits();
 }
@@ -1665,9 +1702,13 @@ function skipHabit(id){
   const h=habits.find(h=>h.id===id);if(!h)return;
   h.skipped=true;
   h.done=false;
-  // Break the streak — a skip is a missed day
   h.streak=0;
   h.lastDone='';
+  if(!h.log) h.log=[];
+  h.log=h.log.filter(e=>e.date!==todayKey);
+  h.log.push({date:todayKey,status:'skip',ts:Date.now()});
+  if(h.log.length>365) h.log=h.log.slice(-365);
+  if(!h.createdAt) h.createdAt=todayKey;
   save(SK.habits,habits);renderHabits();
 }
 
@@ -2538,6 +2579,200 @@ function makeWeekHeader(label, count, id, defaultOpen){
 }
 // ────────────────────────────────────────────────────────────
 
+function buildHabitMetrics(){
+  const el=document.getElementById('habitMetricsContent');
+  if(!el)return;
+  el.innerHTML='';
+  if(!habits.length){
+    el.innerHTML='<div class="zero-state">No habits yet — add some to track metrics</div>';
+    return;
+  }
+
+  // Group by work/personal
+  ['work','personal'].forEach(group=>{
+    const groupHabits=habits.filter(h=>(h.group||'personal')===group);
+    if(!groupHabits.length) return;
+
+    // Group header
+    const hdr=document.createElement('div');
+    hdr.style.cssText='font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;margin-top:8px';
+    hdr.textContent=group==='work'?'Work Day':'Personal';
+    el.appendChild(hdr);
+
+    groupHabits.forEach(h=>{
+      const card=document.createElement('div');
+      card.style.cssText='background:var(--surface);border:1.5px solid var(--border2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px';
+
+      // ── Compute stats ────────────────────────────────────────
+      const log=h.log||[];
+      const createdAt=h.createdAt||todayKey;
+      const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
+
+      // Count scheduled days since creation
+      const startDate=new Date(createdAt);
+      const today=new Date(todayKey);
+      let scheduledDays=0,doneDays=0,skipDays=0,missedDays=0;
+      const logMap={};
+      log.forEach(e=>{logMap[e.date]=e;});
+
+      for(let d=new Date(startDate);d<=today;d.setDate(d.getDate()+1)){
+        const dow=d.getDay();
+        if(!activeDays.includes(dow)) continue;
+        scheduledDays++;
+        const dk=d.toISOString().slice(0,10);
+        if(logMap[dk]){
+          if(logMap[dk].status==='done') doneDays++;
+          else if(logMap[dk].status==='skip') skipDays++;
+          else missedDays++;
+        } else {
+          // Today's habits haven't been addressed yet — don't count as missed
+          if(dk!==todayKey) missedDays++;
+        }
+      }
+      const completionRate=scheduledDays>1?Math.round((doneDays/(scheduledDays-1))*100):0;
+      const skipRate=scheduledDays>1?Math.round((skipDays/(scheduledDays-1))*100):0;
+      const bestStreak=h.bestStreak||h.streak||0;
+
+      // Health status
+      let health='',healthColor='';
+      if(scheduledDays>=7){
+        if(completionRate>=70){health='Strong';healthColor='var(--green)';}
+        else if(completionRate>=40){health='At Risk';healthColor='var(--amber)';}
+        else{health='Struggling';healthColor='var(--red)';}
+      }
+
+      // Best time recommendation
+      const doneLogs=log.filter(e=>e.status==='done'&&e.ts);
+      let timeRec='';
+      if(doneLogs.length>=3){
+        const hours=doneLogs.map(e=>{
+          const d=new Date(e.ts);
+          return d.getHours()+(d.getMinutes()/60);
+        });
+        hours.sort((a,b)=>a-b);
+        // Find the densest cluster of 3+ completions within a 2-hour window
+        let bestClusterAvg=null,bestClusterCount=0;
+        for(let i=0;i<hours.length;i++){
+          const window=hours.filter(h=>Math.abs(h-hours[i])<=1.5);
+          if(window.length>=bestClusterCount||(window.length===bestClusterCount&&bestClusterAvg===null)){
+            bestClusterCount=window.length;
+            bestClusterAvg=window.reduce((a,b)=>a+b,0)/window.length;
+          }
+        }
+        if(bestClusterAvg!==null&&bestClusterCount>=3){
+          const hr=Math.floor(bestClusterAvg);
+          const min=Math.round((bestClusterAvg-hr)*60);
+          const ampm=hr>=12?'PM':'AM';
+          const hr12=hr%12||12;
+          const minStr=String(min).padStart(2,'0');
+          timeRec=`Around ${hr12}:${minStr} ${ampm} (based on ${bestClusterCount} completions)`;
+        }
+      }
+
+      // ── Row 1: name + health badge ───────────────────────────
+      const row1=document.createElement('div');
+      row1.style.cssText='display:flex;align-items:flex-start;justify-content:space-between;gap:8px';
+      const nameEl=document.createElement('span');
+      nameEl.style.cssText='font-size:14px;font-weight:600;color:var(--text);flex:1;min-width:0;word-break:break-word';
+      nameEl.textContent=h.text||'';
+      row1.appendChild(nameEl);
+      if(health){
+        const badge=document.createElement('span');
+        badge.style.cssText='font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+healthColor+';color:#fff;flex-shrink:0;white-space:nowrap';
+        badge.textContent=health;
+        row1.appendChild(badge);
+      }
+      card.appendChild(row1);
+
+      // ── Row 2: stats grid ────────────────────────────────────
+      const stats=document.createElement('div');
+      stats.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:6px';
+      [
+        {val:h.streak||0,lbl:'Current streak',suffix:'d'},
+        {val:bestStreak,lbl:'Best streak',suffix:'d'},
+        {val:completionRate+'%',lbl:'Completion',suffix:''},
+        {val:skipRate+'%',lbl:'Skip rate',suffix:''},
+      ].forEach(s=>{
+        const box=document.createElement('div');
+        box.style.cssText='background:var(--surface2);border-radius:8px;padding:8px 6px;text-align:center';
+        box.innerHTML='<div style="font-size:16px;font-weight:700;color:var(--text)">'+s.val+'</div><div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px">'+s.lbl+'</div>';
+        stats.appendChild(box);
+      });
+      card.appendChild(stats);
+
+      // ── Row 3: 30-day sparkline ──────────────────────────────
+      const sparkWrap=document.createElement('div');
+      sparkWrap.style.cssText='display:flex;flex-direction:column;gap:4px';
+      const sparkLbl=document.createElement('div');
+      sparkLbl.style.cssText='font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px';
+      sparkLbl.textContent='Last 30 days';
+      const sparkRow=document.createElement('div');
+      sparkRow.style.cssText='display:flex;gap:2px;align-items:center;flex-wrap:nowrap;overflow:hidden';
+      const days30=[];
+      for(let i=29;i>=0;i--){
+        const d=new Date(today);d.setDate(d.getDate()-i);
+        days30.push(d);
+      }
+      days30.forEach(d=>{
+        const dot=document.createElement('div');
+        const dk=d.toISOString().slice(0,10);
+        const dow=d.getDay();
+        const scheduled=activeDays.includes(dow);
+        dot.style.cssText='flex:1;min-width:0;height:10px;border-radius:2px;';
+        if(!scheduled){
+          dot.style.background='transparent';
+        } else if(dk===todayKey){
+          dot.style.background='var(--border2)';
+          dot.title='Today';
+        } else if(logMap[dk]&&logMap[dk].status==='done'){
+          dot.style.background='var(--green)';
+          dot.title=dk+': Done';
+        } else if(logMap[dk]&&logMap[dk].status==='skip'){
+          dot.style.background='var(--red)';
+          dot.title=dk+': Skipped';
+        } else if(d<today){
+          dot.style.background='var(--border)';
+          dot.title=dk+': Missed';
+        } else {
+          dot.style.background='transparent';
+        }
+        sparkRow.appendChild(dot);
+      });
+      // Legend
+      const legend=document.createElement('div');
+      legend.style.cssText='display:flex;gap:10px;margin-top:2px';
+      [['var(--green)','Done'],['var(--red)','Skipped'],['var(--border)','Missed']].forEach(([c,l])=>{
+        const li=document.createElement('span');
+        li.style.cssText='display:inline-flex;align-items:center;gap:3px;font-size:9px;color:var(--text3)';
+        li.innerHTML='<span style="width:8px;height:8px;border-radius:1px;background:'+c+';display:inline-block"></span>'+l;
+        legend.appendChild(li);
+      });
+      sparkWrap.appendChild(sparkLbl);
+      sparkWrap.appendChild(sparkRow);
+      sparkWrap.appendChild(legend);
+      card.appendChild(sparkWrap);
+
+      // ── Row 4: time recommendation ───────────────────────────
+      if(timeRec){
+        const rec=document.createElement('div');
+        rec.style.cssText='background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2)';
+        rec.innerHTML='<span style="font-weight:700;color:var(--blue)">💡 Best time:</span> '+timeRec+'<div style="font-size:10px;color:var(--text3);margin-top:3px">Based on when you logged completion — actual time may differ</div>';
+        card.appendChild(rec);
+      }
+
+      // ── Row 5: Struggling warning ─────────────────────────────
+      if(health==='Struggling'&&scheduledDays>=14){
+        const warn=document.createElement('div');
+        warn.style.cssText='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--text2)';
+        warn.innerHTML='<span style="font-weight:700;color:var(--red)">⚠️ Low completion:</span> This habit has been completed less than 40% of the time over '+scheduledDays+' scheduled days. Consider adjusting the schedule, difficulty, or whether this habit still fits your goals.';
+        card.appendChild(warn);
+      }
+
+      el.appendChild(card);
+    });
+  });
+}
+
 function buildWins(){
   wins=load(SK.wins,[]);
   const el=document.getElementById('winsRows');
@@ -2849,7 +3084,18 @@ function initApp(){
         _expanded:false
       };
     });
+    // Capture unaddressed habits from yesterday BEFORE resetting
+    const yesterdayUnaddressed=habits.filter(h=>{
+      const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
+      const yesterday2=new Date(todayKey);yesterday2.setDate(yesterday2.getDate()-1);
+      const yesterdayDow2=yesterday2.getDay();
+      return activeDays.includes(yesterdayDow2)&&!h.done&&!h.skipped;
+    });
     save(SK.habits,habits);
+    // Schedule recap modal after render if there are unaddressed habits
+    if(yesterdayUnaddressed.length>0){
+      setTimeout(()=>showRecapModal(yesterdayUnaddressed),600);
+    }
     // Clear mood & day radio selection
     save(SK.mood,null);
     save(SK.day,null);
@@ -2909,5 +3155,20 @@ function initApp(){
 loadFromCloud();
 </script>
 <div id="syncToast" role="status" aria-live="polite"></div>
+
+<div id="recapModal" class="modal-backdrop" style="display:none;z-index:9000">
+  <div class="modal" style="max-width:480px;width:min(480px,calc(100vw - 32px))">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="font-size:20px">🌅</span>
+      <div class="modal-title" style="margin:0">Yesterday's Habits</div>
+    </div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">These habits from yesterday weren't marked. How did they go?</p>
+    <div id="recapList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:50vh;overflow-y:auto"></div>
+    <div class="row" style="justify-content:flex-end;gap:8px">
+      <button class="chip-secondary" onclick="closeRecap()">Skip</button>
+      <button class="chip-primary" onclick="closeRecap()">Done</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
