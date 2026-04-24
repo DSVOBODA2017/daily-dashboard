@@ -2299,6 +2299,10 @@ function timerReset(){
   const btn=document.getElementById('timerBtn');
   btn.onclick=timerToggle;
   btn.className='chip-success timer-action-btn';
+  // Clear any inline styles set when timer expired
+  btn.style.background='';
+  btn.style.borderColor='';
+  btn.style.color='';
   btn.textContent='Start';
   timerTotal=parseTimerInput()||60;
   timerLeft=timerTotal;
