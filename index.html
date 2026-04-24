@@ -2710,19 +2710,141 @@ function buildHabitMetrics(){
     barWrap.appendChild(barTrack);
     row.appendChild(barWrap);
 
-    // Stats chips
+    // Editable stat chips
     const chips=document.createElement('div');
     chips.style.cssText='display:flex;gap:4px;flex-shrink:0';
-    [
-      {val:'🔥'+streak,title:'Current streak'},
-      {val:'✓'+done,title:'Times done'},
-      {val:'✗'+missed,title:'Times missed'},
-    ].forEach(c=>{
-      const chip=document.createElement('span');
-      chip.style.cssText='font-size:10px;font-weight:600;padding:2px 6px;background:var(--surface2);border-radius:6px;color:var(--text2);white-space:nowrap';
-      chip.textContent=c.val;chip.title=c.title;
-      chips.appendChild(chip);
-    });
+
+    function makeEditableChip(icon, value, title, onSave){
+      const wrap=document.createElement('span');
+      wrap.style.cssText='display:inline-flex;align-items:center;gap:2px;font-size:10px;font-weight:600;padding:2px 4px;background:var(--surface2);border-radius:6px;color:var(--text2);white-space:nowrap;cursor:pointer;border:1px solid transparent';
+      wrap.title=title+' — click to edit';
+
+      const iconSpan=document.createElement('span');
+      iconSpan.textContent=icon;
+
+      const valSpan=document.createElement('span');
+      valSpan.textContent=value;
+
+      wrap.appendChild(iconSpan);
+      wrap.appendChild(valSpan);
+
+      wrap.addEventListener('click',function(e){
+        e.stopPropagation();
+        // Replace with input
+        const inp=document.createElement('input');
+        inp.type='number';
+        inp.min='0';
+        inp.value=value;
+        inp.style.cssText='width:36px;font-size:10px;font-weight:700;border:none;background:transparent;color:var(--text);text-align:center;outline:none;padding:0';
+        wrap.style.borderColor='var(--blue)';
+        wrap.innerHTML='';
+        wrap.appendChild(iconSpan);
+        wrap.appendChild(inp);
+        inp.focus();
+        inp.select();
+        function commit(){
+          const newVal=Math.max(0,parseInt(inp.value)||0);
+          onSave(newVal);
+          value=newVal;
+          valSpan.textContent=newVal;
+          wrap.style.borderColor='transparent';
+          wrap.innerHTML='';
+          wrap.appendChild(iconSpan);
+          wrap.appendChild(valSpan);
+        }
+        inp.addEventListener('blur',commit);
+        inp.addEventListener('keydown',function(ev){
+          if(ev.key==='Enter') commit();
+          if(ev.key==='Escape'){
+            wrap.style.borderColor='transparent';
+            wrap.innerHTML='';
+            wrap.appendChild(iconSpan);
+            wrap.appendChild(valSpan);
+          }
+        });
+      });
+      return wrap;
+    }
+
+    // Streak chip
+    chips.appendChild(makeEditableChip('🔥', streak, 'Current streak', function(v){
+      const habit=habits.find(hh=>hh.id===h.id);
+      if(!habit) return;
+      habit.streak=v;
+      if(v>(habit.bestStreak||0)) habit.bestStreak=v;
+      save(SK.habits,habits);
+      renderHabits();
+    }));
+
+    // Done chip — adjusts log entries count
+    chips.appendChild(makeEditableChip('✓', done, 'Times done', function(v){
+      const habit=habits.find(hh=>hh.id===h.id);
+      if(!habit) return;
+      // Adjust by adding/removing done log entries from the past
+      if(!habit.log) habit.log=[];
+      const currentDone=habit.log.filter(e=>e.status==='done').length;
+      const diff=v-currentDone;
+      if(diff>0){
+        // Add synthetic past done entries (won't affect today or existing dates)
+        let d2=new Date(today);d2.setDate(d2.getDate()-1);
+        let added=0;
+        const logDates=new Set(habit.log.map(e=>e.date));
+        const activeDays2=(!habit.days||habit.days.length===0)?[0,1,2,3,4,5,6]:habit.days;
+        while(added<diff){
+          const dk2=d2.toISOString().slice(0,10);
+          if(!logDates.has(dk2)&&activeDays2.includes(d2.getDay())){
+            habit.log.push({date:dk2,status:'done',ts:d2.getTime()});
+            logDates.add(dk2);
+            added++;
+          }
+          d2.setDate(d2.getDate()-1);
+          if(d2<new Date('2020-01-01')) break;
+        }
+      } else if(diff<0){
+        // Remove most recent done entries
+        let toRemove=Math.abs(diff);
+        habit.log=[...habit.log].reverse().filter(e=>{
+          if(e.status==='done'&&toRemove>0){toRemove--;return false;}
+          return true;
+        }).reverse();
+      }
+      save(SK.habits,habits);
+      setTimeout(buildHabitMetrics,50);
+    }));
+
+    // Missed chip — stored as missed overrides in log
+    chips.appendChild(makeEditableChip('✗', missed, 'Times missed', function(v){
+      const habit=habits.find(hh=>hh.id===h.id);
+      if(!habit) return;
+      if(!habit.log) habit.log=[];
+      const currentMissed=habit.log.filter(e=>e.status==='miss').length;
+      const diff=v-currentMissed;
+      if(diff>0){
+        let d2=new Date(today);d2.setDate(d2.getDate()-1);
+        let added=0;
+        const logDates=new Set(habit.log.map(e=>e.date));
+        const activeDays2=(!habit.days||habit.days.length===0)?[0,1,2,3,4,5,6]:habit.days;
+        while(added<diff){
+          const dk2=d2.toISOString().slice(0,10);
+          if(!logDates.has(dk2)&&activeDays2.includes(d2.getDay())){
+            habit.log.push({date:dk2,status:'miss',ts:d2.getTime()});
+            logDates.add(dk2);
+            added++;
+          }
+          d2.setDate(d2.getDate()-1);
+          if(d2<new Date('2020-01-01')) break;
+        }
+      } else if(diff<0){
+        let toRemove=Math.abs(diff);
+        habit.log=[...habit.log].reverse().filter(e=>{
+          if(e.status==='miss'&&toRemove>0){toRemove--;return false;}
+          return true;
+        }).reverse();
+      }
+      save(SK.habits,habits);
+      setTimeout(buildHabitMetrics,50);
+    }));
+
     row.appendChild(chips);
 
     // Health badge
