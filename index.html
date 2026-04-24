@@ -2583,201 +2583,242 @@ function buildHabitMetrics(){
   const el=document.getElementById('habitMetricsContent');
   if(!el)return;
   el.innerHTML='';
+
   if(!habits.length){
-    el.innerHTML='<div class="zero-state">No habits yet — add some to track metrics</div>';
+    el.innerHTML='<div class="zero-state">No habits yet — add some to start tracking</div>';
     return;
   }
 
-  // Group by work/personal
-  ['work','personal'].forEach(group=>{
-    const groupHabits=habits.filter(h=>(h.group||'personal')===group);
-    if(!groupHabits.length) return;
+  const today=new Date(todayKey);
 
-    // Group header
-    const hdr=document.createElement('div');
-    hdr.style.cssText='font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;margin-top:8px';
-    hdr.textContent=group==='work'?'Work Day':'Personal';
-    el.appendChild(hdr);
-
-    groupHabits.forEach(h=>{
-      // ── Compute stats ────────────────────────────────────────
-      const log=h.log||[];
-      const createdAt=h.createdAt||todayKey;
-      const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
-      const startDate=new Date(createdAt);
-      const today=new Date(todayKey);
-      let scheduledDays=0,doneDays=0,missedDays=0;
-      const logMap={};
-      log.forEach(e=>{logMap[e.date]=e;});
-      for(let d=new Date(startDate);d<=today;d.setDate(d.getDate()+1)){
-        const dow=d.getDay();
-        if(!activeDays.includes(dow)) continue;
-        scheduledDays++;
-        const dk=d.toISOString().slice(0,10);
-        if(logMap[dk]){if(logMap[dk].status==='done') doneDays++;else missedDays++;}
-        else if(dk!==todayKey) missedDays++;
-      }
-      const completionRate=scheduledDays>1?Math.round((doneDays/(scheduledDays-1))*100):0;
-      const missedRate=scheduledDays>1?Math.round((missedDays/(scheduledDays-1))*100):0;
-      const bestStreak=h.bestStreak||h.streak||0;
-      let health='',healthColor='',healthBg='';
-      if(scheduledDays>=7){
-        if(completionRate>=70){health='Strong';healthColor='#15803d';healthBg='rgba(22,163,74,0.12)';}
-        else if(completionRate>=40){health='At Risk';healthColor='#b45309';healthBg='rgba(217,119,6,0.12)';}
-        else{health='Struggling';healthColor='#dc2626';healthBg='rgba(239,68,68,0.12)';}
-      }
-      const doneLogs=log.filter(e=>e.status==='done'&&e.ts);
-      let timeRec='';
-      if(doneLogs.length>=3){
-        const hrs=doneLogs.map(e=>{const dd=new Date(e.ts);return dd.getHours()+(dd.getMinutes()/60);});
-        hrs.sort((a,b)=>a-b);
-        let bAvg=null,bCnt=0;
-        for(let i=0;i<hrs.length;i++){
-          const win=hrs.filter(x=>Math.abs(x-hrs[i])<=1.5);
-          if(win.length>bCnt){bCnt=win.length;bAvg=win.reduce((a,b)=>a+b,0)/win.length;}
-        }
-        if(bAvg!==null&&bCnt>=3){
-          const hr=Math.floor(bAvg),mn=Math.round((bAvg-hr)*60);
-          const ap=hr>=12?'PM':'AM',h12=hr%12||12;
-          timeRec=`${h12}:${String(mn).padStart(2,'0')} ${ap}`;
-        }
-      }
-
-      // ── Card ─────────────────────────────────────────────────
-      const card=document.createElement('div');
-      card.style.cssText='background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden';
-
-      // Top bar: name + health badge
-      const topBar=document.createElement('div');
-      topBar.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 12px;'+(health?'border-bottom:1px solid var(--border)':'');
-      const nameEl=document.createElement('span');
-      nameEl.style.cssText='font-size:13px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-      nameEl.textContent=h.text||'';
-      topBar.appendChild(nameEl);
-      if(health){
-        const badge=document.createElement('span');
-        badge.style.cssText='font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:'+healthBg+';color:'+healthColor+';border:1px solid '+healthColor+'40;flex-shrink:0;white-space:nowrap';
-        badge.textContent=health;
-        topBar.appendChild(badge);
-      }
-      if(timeRec){
-        const timePill=document.createElement('span');
-        timePill.style.cssText='font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(59,130,246,0.1);color:var(--blue);border:1px solid rgba(59,130,246,0.2);flex-shrink:0;white-space:nowrap';
-        timePill.textContent='💡 '+timeRec;
-        timePill.title='Suggested best time based on your completion patterns. Actual time may differ.';
-        topBar.appendChild(timePill);
-      }
-      card.appendChild(topBar);
-
-      // Stats row: 4 compact inline stats
-      const statsRow=document.createElement('div');
-      statsRow.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)';
-      [
-        {val:h.streak||0,lbl:'Streak',unit:'d'},
-        {val:bestStreak,lbl:'Best',unit:'d'},
-        {val:completionRate+'%',lbl:'Done'},
-        {val:missedRate+'%',lbl:'Missed'},
-      ].forEach((s,i)=>{
-        const box=document.createElement('div');
-        box.style.cssText='padding:7px 4px;text-align:center'+(i<3?';border-right:1px solid var(--border)':'');
-        box.innerHTML='<div style="font-size:15px;font-weight:700;color:var(--text);line-height:1">'+s.val+'</div>'
-          +'<div style="font-size:8px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px">'+s.lbl+'</div>';
-        statsRow.appendChild(box);
-      });
-      card.appendChild(statsRow);
-
-      // Heatmap: compact 5-week grid
-      const calWrap=document.createElement('div');
-      calWrap.style.cssText='padding:8px 10px;display:flex;flex-direction:column;gap:4px';
-
-      // Date range
-      const rangeStart=new Date(today);rangeStart.setDate(rangeStart.getDate()-34);
-      const fmtD=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      const calMeta=document.createElement('div');
-      calMeta.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:2px';
-      calMeta.innerHTML='<span style="font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">Activity</span>'
-        +'<span style="font-size:8px;color:var(--text3)">'+fmtD(rangeStart)+' – '+fmtD(today)+'</span>';
-      calWrap.appendChild(calMeta);
-
-      // DoW headers
-      const dowRow=document.createElement('div');
-      dowRow.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:2px';
-      ['S','M','T','W','T','F','S'].forEach(dl=>{
-        const lbl=document.createElement('div');
-        lbl.style.cssText='font-size:7px;font-weight:600;color:var(--text3);text-align:center';
-        lbl.textContent=dl;
-        dowRow.appendChild(lbl);
-      });
-      calWrap.appendChild(dowRow);
-
-      // Grid
-      const gridStart=new Date(rangeStart);
-      gridStart.setDate(gridStart.getDate()-gridStart.getDay());
-      const gridEnd=new Date(gridStart);gridEnd.setDate(gridEnd.getDate()+34);
-      const grid=document.createElement('div');
-      grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:2px';
-
-      for(let d=new Date(gridStart);d<=gridEnd;d.setDate(d.getDate()+1)){
-        const cell=document.createElement('div');
-        const dk=d.toISOString().slice(0,10);
-        const dow=d.getDay();
-        const scheduled=activeDays.includes(dow);
-        const isToday2=dk===todayKey;
-        const inRange=d>=rangeStart&&d<=today;
-        cell.style.cssText='aspect-ratio:1;border-radius:3px;cursor:default;transition:transform 0.1s';
-        if(!inRange&&!isToday2){
-          cell.style.background='var(--surface2)';cell.style.opacity='0.2';
-        } else if(!scheduled){
-          cell.style.background='var(--surface2)';cell.style.opacity='0.25';
-        } else if(isToday2){
-          cell.style.background='var(--surface3)';
-          cell.style.outline='1.5px solid var(--blue)';
-          cell.style.outlineOffset='-1px';
-          cell.title='Today';
-        } else if(logMap[dk]&&logMap[dk].status==='done'){
-          cell.style.background='#16a34a';
-          cell.title=dk+' · Done';
-        } else if(inRange&&!logMap[dk]||logMap[dk]&&logMap[dk].status!=='done'){
-          cell.style.background='transparent';
-          cell.style.outline='1px solid var(--text3)';
-          cell.style.outlineOffset='-1px';
-          cell.style.opacity='0.5';
-          cell.title=dk+' · Missed';
-        }
-        cell.addEventListener('mouseenter',function(){this.style.transform='scale(1.2)';});
-        cell.addEventListener('mouseleave',function(){this.style.transform='scale(1)';});
-        grid.appendChild(cell);
-      }
-      calWrap.appendChild(grid);
-
-      // Inline legend
-      const legend=document.createElement('div');
-      legend.style.cssText='display:flex;gap:8px;margin-top:3px;flex-wrap:wrap';
-      [{bg:'#16a34a',lbl:'Done'},{outline:'var(--text3)',lbl:'Missed'},{bg:'var(--surface2)',lbl:'Off day'}].forEach(item=>{
-        const li=document.createElement('span');
-        li.style.cssText='display:inline-flex;align-items:center;gap:3px;font-size:8px;color:var(--text3)';
-        const sw=document.createElement('span');
-        sw.style.cssText='width:8px;height:8px;border-radius:2px;display:inline-block;flex-shrink:0';
-        if(item.bg){sw.style.background=item.bg;}
-        if(item.outline){sw.style.outline='1px solid '+item.outline;sw.style.outlineOffset='-1px';sw.style.background='transparent';}
-        li.appendChild(sw);li.appendChild(document.createTextNode(item.lbl));
-        legend.appendChild(li);
-      });
-      calWrap.appendChild(legend);
-      card.appendChild(calWrap);
-
-      // Struggling warning — inline subtle note
-      if(health==='Struggling'&&scheduledDays>=14){
-        const warn=document.createElement('div');
-        warn.style.cssText='margin:0 10px 8px;padding:6px 8px;background:rgba(239,68,68,0.07);border-radius:6px;font-size:10px;color:var(--text2);border-left:2px solid #ef4444';
-        warn.innerHTML='<strong style="color:#dc2626">Low completion</strong> — consider adjusting the schedule or frequency.';
-        card.appendChild(warn);
-      }
-
-      el.appendChild(card);
-    });
+  // ── Compute per-habit stats ───────────────────────────────────
+  const habitStats=habits.map(h=>{
+    const log=h.log||[];
+    const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
+    const createdAt=h.createdAt||todayKey;
+    const startDate=new Date(createdAt);
+    let scheduled=0,done=0,missed=0;
+    const logMap={};
+    log.forEach(e=>{logMap[e.date]=e;});
+    for(let d=new Date(startDate);d<=today;d.setDate(d.getDate()+1)){
+      if(!activeDays.includes(d.getDay())) continue;
+      scheduled++;
+      const dk=d.toISOString().slice(0,10);
+      if(logMap[dk]&&logMap[dk].status==='done') done++;
+      else if(dk!==todayKey) missed++;
+    }
+    const total=scheduled>1?scheduled-1:scheduled;
+    const consistency=total>0?Math.round((done/total)*100):0;
+    const bestStreak=h.bestStreak||h.streak||0;
+    const doneLogs=log.filter(e=>e.status==='done'&&e.ts);
+    return {h,scheduled:total,done,missed,consistency,streak:h.streak||0,bestStreak,doneLogs,group:h.group||'personal'};
   });
+
+  // Overall summary
+  const totalScheduled=habitStats.reduce((a,s)=>a+s.scheduled,0);
+  const totalDone=habitStats.reduce((a,s)=>a+s.done,0);
+  const totalMissed=habitStats.reduce((a,s)=>a+s.missed,0);
+  const overallConsistency=totalScheduled>0?Math.round((totalDone/totalScheduled)*100):0;
+  const totalStreakDays=habitStats.reduce((a,s)=>a+s.streak,0);
+
+  // ── Section helper ────────────────────────────────────────────
+  function sectionTitle(txt){
+    const d=document.createElement('div');
+    d.style.cssText='font-size:11px;font-weight:700;letter-spacing:0.7px;text-transform:uppercase;color:var(--text3);margin-top:16px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)';
+    d.textContent=txt;
+    el.appendChild(d);
+  }
+
+  // ── 1. SUMMARY ROW ────────────────────────────────────────────
+  sectionTitle('Overview');
+  const summaryGrid=document.createElement('div');
+  summaryGrid.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:8px';
+  [
+    {val:habits.length,lbl:'Habits tracked',color:'var(--blue)'},
+    {val:overallConsistency+'%',lbl:'Overall consistency',color:overallConsistency>=70?'var(--green)':overallConsistency>=40?'var(--amber)':'var(--red)'},
+    {val:totalStreakDays+'d',lbl:'Active streaks',color:'var(--amber)'},
+    {val:totalMissed,lbl:'Total misses',color:'var(--text2)'},
+  ].forEach(s=>{
+    const box=document.createElement('div');
+    box.style.cssText='background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:12px 8px;text-align:center';
+    box.innerHTML='<div style="font-size:22px;font-weight:800;color:'+s.color+';line-height:1.1">'+s.val+'</div>'
+      +'<div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-top:4px;line-height:1.3">'+s.lbl+'</div>';
+    summaryGrid.appendChild(box);
+  });
+  el.appendChild(summaryGrid);
+
+  // ── 2. HABIT LEADERBOARD ──────────────────────────────────────
+  sectionTitle('Habit Leaderboard');
+  const note=document.createElement('div');
+  note.style.cssText='font-size:10px;color:var(--text3);margin-bottom:8px;margin-top:-4px';
+  note.textContent='Ranked by consistency. Requires 3+ scheduled days to show rating.';
+  el.appendChild(note);
+
+  const sorted=[...habitStats].sort((a,b)=>b.consistency-a.consistency||b.streak-a.streak);
+
+  const leaderWrap=document.createElement('div');
+  leaderWrap.style.cssText='display:flex;flex-direction:column;gap:5px';
+
+  sorted.forEach((s,idx)=>{
+    const {h,consistency,streak,bestStreak,done,missed,scheduled}=s;
+    let health='',hColor='',hBg='';
+    if(scheduled>=3){
+      if(consistency>=70){health='Strong';hColor='#15803d';hBg='rgba(22,163,74,0.1)';}
+      else if(consistency>=40){health='At Risk';hColor='#b45309';hBg='rgba(217,119,6,0.1)';}
+      else{health='Struggling';hColor='#dc2626';hBg='rgba(239,68,68,0.1)';}
+    }
+
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;';
+
+    // Rank
+    const rank=document.createElement('span');
+    rank.style.cssText='font-size:12px;font-weight:800;color:var(--text3);width:18px;flex-shrink:0;text-align:center';
+    rank.textContent=idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'#'+(idx+1);
+    row.appendChild(rank);
+
+    // Name
+    const name=document.createElement('span');
+    name.style.cssText='font-size:13px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    name.textContent=h.text||'';
+    row.appendChild(name);
+
+    // Consistency bar + %
+    const barWrap=document.createElement('div');
+    barWrap.style.cssText='display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;width:80px';
+    const pct=document.createElement('span');
+    pct.style.cssText='font-size:12px;font-weight:700;color:'+(hColor||'var(--text2)');
+    pct.textContent=consistency+'%';
+    const barTrack=document.createElement('div');
+    barTrack.style.cssText='width:100%;height:4px;background:var(--surface2);border-radius:4px;overflow:hidden';
+    const barFill=document.createElement('div');
+    barFill.style.cssText='height:100%;border-radius:4px;background:'+(hColor||'var(--text3)')+';width:'+consistency+'%;transition:width 0.4s ease';
+    barTrack.appendChild(barFill);
+    barWrap.appendChild(pct);
+    barWrap.appendChild(barTrack);
+    row.appendChild(barWrap);
+
+    // Stats chips
+    const chips=document.createElement('div');
+    chips.style.cssText='display:flex;gap:4px;flex-shrink:0';
+    [
+      {val:'🔥'+streak,title:'Current streak'},
+      {val:'✓'+done,title:'Times done'},
+      {val:'✗'+missed,title:'Times missed'},
+    ].forEach(c=>{
+      const chip=document.createElement('span');
+      chip.style.cssText='font-size:10px;font-weight:600;padding:2px 6px;background:var(--surface2);border-radius:6px;color:var(--text2);white-space:nowrap';
+      chip.textContent=c.val;chip.title=c.title;
+      chips.appendChild(chip);
+    });
+    row.appendChild(chips);
+
+    // Health badge
+    if(health){
+      const badge=document.createElement('span');
+      badge.style.cssText='font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:'+hBg+';color:'+hColor+';border:1px solid '+hColor+'55;white-space:nowrap;flex-shrink:0';
+      badge.textContent=health;
+      row.appendChild(badge);
+    }
+
+    leaderWrap.appendChild(row);
+  });
+  el.appendChild(leaderWrap);
+
+  // ── 3. TOP 3 STRONGEST HABITS ────────────────────────────────
+  const top3=sorted.filter(s=>s.scheduled>=3).slice(0,3);
+  if(top3.length){
+    sectionTitle('Strongest Habits');
+    const podium=document.createElement('div');
+    podium.style.cssText='display:grid;grid-template-columns:repeat('+top3.length+',1fr);gap:8px';
+    const medals=['🥇','🥈','🥉'];
+    const medalColors=['#b45309','#6b7280','#92400e'];
+    const medalBgs=['rgba(251,191,36,0.1)','rgba(156,163,175,0.1)','rgba(180,83,9,0.1)'];
+    top3.forEach((s,i)=>{
+      const card=document.createElement('div');
+      card.style.cssText='background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center;display:flex;flex-direction:column;gap:6px;background:'+medalBgs[i];
+      card.innerHTML='<div style="font-size:24px;line-height:1">'+medals[i]+'</div>'
+        +'<div style="font-size:12px;font-weight:700;color:var(--text);line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+esc(s.h.text||'')+'</div>'
+        +'<div style="font-size:18px;font-weight:800;color:'+medalColors[i]+';line-height:1">'+s.consistency+'%</div>'
+        +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px">consistency</div>'
+        +'<div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap">'
+          +'<span style="font-size:10px;font-weight:600;color:var(--text2)">🔥 '+s.streak+'d streak</span>'
+          +'<span style="font-size:10px;font-weight:600;color:var(--text2)">✓ '+s.done+' done</span>'
+        +'</div>';
+      podium.appendChild(card);
+    });
+    el.appendChild(podium);
+  }
+
+  // ── 4. GOLDEN HOUR ────────────────────────────────────────────
+  const allDoneLogs=habitStats.flatMap(s=>s.doneLogs);
+  if(allDoneLogs.length>=5){
+    sectionTitle('Golden Hour');
+    const ghNote=document.createElement('div');
+    ghNote.style.cssText='font-size:10px;color:var(--text3);margin-bottom:10px;margin-top:-4px';
+    ghNote.textContent='Based on '+allDoneLogs.length+' logged completions. Logged time may not reflect exact completion time.';
+    el.appendChild(ghNote);
+
+    // Bucket completions into 1-hour slots (0-23)
+    const buckets=new Array(24).fill(0);
+    allDoneLogs.forEach(e=>{
+      const hr=new Date(e.ts).getHours();
+      buckets[hr]++;
+    });
+    const maxBucket=Math.max(...buckets);
+    const peakHr=buckets.indexOf(maxBucket);
+    const peakPct=Math.round((maxBucket/allDoneLogs.length)*100);
+
+    // Golden hour callout
+    const ghCallout=document.createElement('div');
+    ghCallout.style.cssText='background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:10px';
+    const peakLabel=peakHr===0?'12 AM':peakHr<12?peakHr+' AM':peakHr===12?'12 PM':(peakHr-12)+' PM';
+    const nextLabel=(peakHr+1)===0?'12 AM':(peakHr+1)<12?(peakHr+1)+' AM':(peakHr+1)===12?'12 PM':((peakHr+1)-12)+' PM';
+    ghCallout.innerHTML='<span style="font-size:28px">⏰</span>'
+      +'<div>'
+        +'<div style="font-size:16px;font-weight:800;color:var(--text)">'+peakLabel+' – '+nextLabel+'</div>'
+        +'<div style="font-size:11px;color:var(--text2);margin-top:2px">'+peakPct+'% of your completions happen in this window</div>'
+      +'</div>';
+    el.appendChild(ghCallout);
+
+    // 24-hour bar chart
+    const barChart=document.createElement('div');
+    barChart.style.cssText='display:flex;align-items:flex-end;gap:2px;height:48px;padding:0 2px';
+    buckets.forEach((count,hr)=>{
+      const barWrap=document.createElement('div');
+      barWrap.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%';
+      const bar=document.createElement('div');
+      const h=(maxBucket>0?(count/maxBucket)*100:0);
+      const isPeak=hr===peakHr;
+      bar.style.cssText='width:100%;border-radius:2px 2px 0 0;transition:height 0.3s ease;margin-top:auto;'
+        +'height:'+Math.max(h,count>0?8:0)+'%;'
+        +'background:'+(isPeak?'#f59e0b':count>0?'var(--blue)':'var(--surface2)')+';'
+        +'opacity:'+(isPeak?'1':'0.5');
+      bar.title=(hr===0?'12am':hr<12?hr+'am':hr===12?'12pm':(hr-12)+'pm')+': '+count+' completions';
+      barWrap.appendChild(bar);
+      barChart.appendChild(barWrap);
+    });
+    el.appendChild(barChart);
+
+    // Hour labels (every 6 hours)
+    const hrLabels=document.createElement('div');
+    hrLabels.style.cssText='display:flex;justify-content:space-between;margin-top:3px;padding:0 2px';
+    ['12a','6a','12p','6p','12a'].forEach(l=>{
+      const span=document.createElement('span');
+      span.style.cssText='font-size:8px;color:var(--text3)';
+      span.textContent=l;
+      hrLabels.appendChild(span);
+    });
+    el.appendChild(hrLabels);
+  } else if(allDoneLogs.length>0){
+    sectionTitle('Golden Hour');
+    const ghEmpty=document.createElement('div');
+    ghEmpty.style.cssText='font-size:11px;color:var(--text3);padding:8px 0';
+    ghEmpty.textContent='Keep logging completions — golden hour appears after 5 completions ('+(5-allDoneLogs.length)+' more needed).';
+    el.appendChild(ghEmpty);
+  }
 }
+
 
 function buildWins(){
   wins=load(SK.wins,[]);
