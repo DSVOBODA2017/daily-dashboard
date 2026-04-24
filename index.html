@@ -2622,15 +2622,13 @@ function buildHabitMetrics(){
         const dk=d.toISOString().slice(0,10);
         if(logMap[dk]){
           if(logMap[dk].status==='done') doneDays++;
-          else if(logMap[dk].status==='skip') skipDays++;
-          else missedDays++;
+          else missedDays++; // skipped counts as missed
         } else {
-          // Today's habits haven't been addressed yet — don't count as missed
           if(dk!==todayKey) missedDays++;
         }
       }
       const completionRate=scheduledDays>1?Math.round((doneDays/(scheduledDays-1))*100):0;
-      const skipRate=scheduledDays>1?Math.round((skipDays/(scheduledDays-1))*100):0;
+      const missedRate=scheduledDays>1?Math.round((missedDays/(scheduledDays-1))*100):0;
       const bestStreak=h.bestStreak||h.streak||0;
 
       // Health status
@@ -2688,10 +2686,10 @@ function buildHabitMetrics(){
       const stats=document.createElement('div');
       stats.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:6px';
       [
-        {val:h.streak||0,lbl:'Current streak',suffix:'d'},
-        {val:bestStreak,lbl:'Best streak',suffix:'d'},
-        {val:completionRate+'%',lbl:'Completion',suffix:''},
-        {val:skipRate+'%',lbl:'Skip rate',suffix:''},
+        {val:h.streak||0,lbl:'Current streak'},
+        {val:bestStreak,lbl:'Best streak'},
+        {val:completionRate+'%',lbl:'Completion'},
+        {val:missedRate+'%',lbl:'Missed'},
       ].forEach(s=>{
         const box=document.createElement('div');
         box.style.cssText='background:var(--surface2);border-radius:8px;padding:8px 6px;text-align:center';
@@ -2700,57 +2698,124 @@ function buildHabitMetrics(){
       });
       card.appendChild(stats);
 
-      // ── Row 3: 30-day sparkline ──────────────────────────────
-      const sparkWrap=document.createElement('div');
-      sparkWrap.style.cssText='display:flex;flex-direction:column;gap:4px';
-      const sparkLbl=document.createElement('div');
-      sparkLbl.style.cssText='font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px';
-      sparkLbl.textContent='Last 30 days';
-      const sparkRow=document.createElement('div');
-      sparkRow.style.cssText='display:flex;gap:2px;align-items:center;flex-wrap:nowrap;overflow:hidden';
-      const days30=[];
-      for(let i=29;i>=0;i--){
-        const d=new Date(today);d.setDate(d.getDate()-i);
-        days30.push(d);
-      }
-      days30.forEach(d=>{
-        const dot=document.createElement('div');
+      // ── Row 3: Calendar heatmap (5 weeks × 7 days) ──────────
+      const calWrap=document.createElement('div');
+      calWrap.style.cssText='display:flex;flex-direction:column;gap:8px';
+
+      // Header: label + date range
+      const calHdr=document.createElement('div');
+      calHdr.style.cssText='display:flex;align-items:center;justify-content:space-between';
+      const calLbl=document.createElement('span');
+      calLbl.style.cssText='font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.6px';
+      calLbl.textContent='35-Day Activity';
+      // Date range label
+      const rangeStart=new Date(today);rangeStart.setDate(rangeStart.getDate()-34);
+      const fmtD=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      const calRange=document.createElement('span');
+      calRange.style.cssText='font-size:10px;color:var(--text3)';
+      calRange.textContent=fmtD(rangeStart)+' – '+fmtD(today);
+      calHdr.appendChild(calLbl);calHdr.appendChild(calRange);
+      calWrap.appendChild(calHdr);
+
+      // Day-of-week labels
+      const dowLabels=document.createElement('div');
+      dowLabels.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:3px';
+      ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(dl=>{
+        const lbl=document.createElement('div');
+        lbl.style.cssText='font-size:8px;font-weight:600;color:var(--text3);text-align:center;padding-bottom:2px;letter-spacing:0.3px';
+        lbl.textContent=dl;
+        dowLabels.appendChild(lbl);
+      });
+      calWrap.appendChild(dowLabels);
+
+      // Build 5-week grid aligned to Sun-Sat
+      // Find the Sunday on or before (today - 34 days)
+      const gridStart=new Date(rangeStart);
+      gridStart.setDate(gridStart.getDate()-gridStart.getDay()); // back to Sunday
+
+      const grid=document.createElement('div');
+      grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:3px';
+
+      const gridEnd=new Date(gridStart);gridEnd.setDate(gridEnd.getDate()+34);
+
+      for(let d=new Date(gridStart);d<=gridEnd;d.setDate(d.getDate()+1)){
+        const cell=document.createElement('div');
         const dk=d.toISOString().slice(0,10);
         const dow=d.getDay();
         const scheduled=activeDays.includes(dow);
-        dot.style.cssText='flex:1;min-width:0;height:10px;border-radius:2px;';
-        if(!scheduled){
-          dot.style.background='transparent';
-        } else if(dk===todayKey){
-          dot.style.background='var(--border2)';
-          dot.title='Today';
+        const isFuture=d>today;
+        const isToday2=dk===todayKey;
+        const inRange=d>=rangeStart&&d<=today;
+
+        // Base cell style
+        cell.style.cssText='aspect-ratio:1;border-radius:5px;position:relative;transition:transform 0.1s';
+
+        if(!inRange&&!isToday2){
+          // Outside our display range — show faint placeholder
+          cell.style.background='var(--surface2)';
+          cell.style.opacity='0.3';
+        } else if(!scheduled){
+          // Not scheduled this day — subtle background, clearly intentional
+          cell.style.background='var(--surface2)';
+          cell.style.opacity='0.4';
+          cell.title='Not scheduled';
+        } else if(isToday2){
+          // Today — pulsing ring
+          cell.style.background='var(--surface3)';
+          cell.style.border='2px solid var(--blue)';
+          cell.style.boxSizing='border-box';
+          cell.title='Today';
+        } else if(isFuture){
+          cell.style.background='var(--surface2)';
+          cell.title='Future';
         } else if(logMap[dk]&&logMap[dk].status==='done'){
-          dot.style.background='var(--green)';
-          dot.title=dk+': Done';
+          cell.style.background='#16a34a';
+          cell.style.boxShadow='0 1px 4px rgba(22,163,74,0.35)';
+          cell.title=dk+' · Done ✓';
         } else if(logMap[dk]&&logMap[dk].status==='skip'){
-          dot.style.background='var(--red)';
-          dot.title=dk+': Skipped';
-        } else if(d<today){
-          dot.style.background='var(--border)';
-          dot.title=dk+': Missed';
+          // Skipped = missed in metrics view
+          cell.style.background='transparent';
+          cell.style.border='1.5px solid var(--text3)';
+          cell.style.boxSizing='border-box';
+          cell.style.opacity='0.6';
+          cell.title=dk+' · Missed';
         } else {
-          dot.style.background='transparent';
+          // Scheduled but missed — outlined cell, clearly visible
+          cell.style.background='transparent';
+          cell.style.border='1.5px solid var(--text3)';
+          cell.style.boxSizing='border-box';
+          cell.style.opacity='0.6';
+          cell.title=dk+' · Missed';
         }
-        sparkRow.appendChild(dot);
-      });
-      // Legend
+
+        // Hover effect
+        cell.addEventListener('mouseenter',function(){this.style.transform='scale(1.15)';});
+        cell.addEventListener('mouseleave',function(){this.style.transform='scale(1)';});
+        grid.appendChild(cell);
+      }
+      calWrap.appendChild(grid);
+
+      // Legend — clean pill style
       const legend=document.createElement('div');
-      legend.style.cssText='display:flex;gap:10px;margin-top:2px';
-      [['var(--green)','Done'],['var(--red)','Skipped'],['var(--border)','Missed']].forEach(([c,l])=>{
+      legend.style.cssText='display:flex;gap:12px;flex-wrap:wrap;margin-top:2px';
+      [
+        {bg:'#16a34a',shadow:'rgba(22,163,74,0.3)',label:'Done'},
+        {border:'var(--text3)',label:'Missed'},
+        {bg:'var(--surface2)',label:'Not scheduled'},
+      ].forEach(item=>{
         const li=document.createElement('span');
-        li.style.cssText='display:inline-flex;align-items:center;gap:3px;font-size:9px;color:var(--text3)';
-        li.innerHTML='<span style="width:8px;height:8px;border-radius:1px;background:'+c+';display:inline-block"></span>'+l;
+        li.style.cssText='display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);font-weight:500';
+        const swatch=document.createElement('span');
+        swatch.style.cssText='width:12px;height:12px;border-radius:3px;display:inline-block;flex-shrink:0';
+        if(item.bg) swatch.style.background=item.bg;
+        if(item.shadow) swatch.style.boxShadow='0 1px 4px '+item.shadow;
+        if(item.border){ swatch.style.border='1.5px solid '+item.border; swatch.style.background='transparent'; }
+        li.appendChild(swatch);
+        li.appendChild(document.createTextNode(item.label));
         legend.appendChild(li);
       });
-      sparkWrap.appendChild(sparkLbl);
-      sparkWrap.appendChild(sparkRow);
-      sparkWrap.appendChild(legend);
-      card.appendChild(sparkWrap);
+      calWrap.appendChild(legend);
+      card.appendChild(calWrap);
 
       // ── Row 4: time recommendation ───────────────────────────
       if(timeRec){
