@@ -6,6 +6,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Daily Dashboard</title>
 <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<script>
+  // Apply theme immediately before first paint to avoid flash
+  (function(){
+    var dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  })();
+</script>
 <link rel="icon" type="image/png" sizes="180x180" href="img/favicon.png">
 <link rel="apple-touch-icon" href="favicon.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon.png">
@@ -3213,11 +3220,9 @@ if(which===‘metrics’) updateMetrics();
 }
 
 function toggleTheme(){
+// Theme follows system — manual toggle kept for compatibility but not exposed in UI
 const isDark=document.documentElement.getAttribute(‘data-theme’)===‘dark’;
 document.documentElement.setAttribute(‘data-theme’,isDark?‘light’:‘dark’);
-document.getElementById(‘themeBtn’).textContent=isDark?‘🌙 Dark’:‘☀️ Light’;
-save(SK.theme,isDark?‘light’:‘dark’);
-drawPie();
 }
 
 function initApp(){
