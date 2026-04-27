@@ -1118,46 +1118,80 @@ function renderTasks(list,cid,countId){
     d.className='task-item'+(isP?' priority':'')+(isEditing?' editing':'');
     d.draggable=!isEditing;d.dataset.i=i;d.dataset.tid=t.id;d.dataset.list=list;
     if(isEditing){
-      d.innerHTML=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.4px">Editing task</span></div>
-        <div class="inline-form-lbl">Task name</div>
-        <input type="text" id="inlineEditTitle" value="${esc(t.text)}" style="font-size:14px;font-weight:500" onkeydown="if(event.key==='Escape')cancelInlineEdit()">
-        <div class="inline-form-lbl">Description <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-        <textarea id="inlineEditDesc" rows="2" placeholder="Add more details...">${esc(t.desc||'')}</textarea>
-        <div class="inline-form-lbl">Due date <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-        <div class="inline-form-row">
-          <input type="date" id="inlineEditDate" value="${t.dueDate||''}" style="flex:1">
-          <div style="display:flex;align-items:center;gap:4px">
-            <input type="time" id="inlineEditTime" value="${t.dueTime||''}" style="width:110px">
-            <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="document.getElementById('inlineEditTime').value=''" style="font-size:10px;padding:2px 7px;flex-shrink:0" title="✕ Clear">✕</button>
-          </div>
-        </div>
-        <div class="inline-form-lbl" style="margin-top:4px">Sub-tasks <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
-        <div id="taskEditStepsList" style="display:flex;flex-direction:column;gap:5px;margin-bottom:4px"></div>
-        <div style="display:flex;gap:5px">
-          <input type="text" id="taskEditStepInput" placeholder="Add a sub-task..." style="flex:1;font-size:12px" onkeydown="if(event.key==='Enter'){event.preventDefault();addTaskEditStep();}">
-          <button class="chip-primary" onmousedown="event.preventDefault()" onclick="addTaskEditStep()" style="font-size:11px;flex-shrink:0">+ Step</button>
-        </div>
-        <div class="inline-form-actions" style="justify-content:space-between">
-          <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="if(confirm('Delete this task?')){delTask('${list}',${t.id});}" style="font-size:11px;color:var(--red);border-color:var(--red)">Delete</button>
-          <div style="display:flex;gap:6px">
-            <button class="chip-secondary" onmousedown="event.preventDefault()" onclick="cancelInlineEdit()" style="font-size:11px">Cancel</button>
-            <button class="chip-primary" onmousedown="event.preventDefault()" onclick="confirmInlineEdit('${list}',${t.id})" style="font-size:11px">Save</button>
-          </div>
-        </div>`;
-      // Append win checkbox for work tasks via DOM
+      // Build edit form entirely via DOM so taskEditStepsList is immediately available
+      _taskEditSteps=(t.steps||[]).map(s=>({...s}));
+
+      // Header
+      const editHdr=document.createElement('div');
+      editHdr.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:4px';
+      editHdr.innerHTML='<span style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.4px">Editing task</span>';
+      d.appendChild(editHdr);
+
+      // Task name
+      const nameLbl=document.createElement('div');nameLbl.className='inline-form-lbl';nameLbl.textContent='Task name';d.appendChild(nameLbl);
+      const nameInp=document.createElement('input');nameInp.type='text';nameInp.id='inlineEditTitle';nameInp.value=t.text;nameInp.style.cssText='font-size:14px;font-weight:500';
+      nameInp.addEventListener('keydown',function(e){if(e.key==='Escape')cancelInlineEdit();});
+      d.appendChild(nameInp);
+
+      // Description
+      const descLbl=document.createElement('div');descLbl.className='inline-form-lbl';descLbl.innerHTML='Description <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span>';d.appendChild(descLbl);
+      const descTa=document.createElement('textarea');descTa.id='inlineEditDesc';descTa.rows=2;descTa.placeholder='Add more details...';descTa.textContent=t.desc||'';d.appendChild(descTa);
+
+      // Due date
+      const dueLbl=document.createElement('div');dueLbl.className='inline-form-lbl';dueLbl.innerHTML='Due date <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span>';d.appendChild(dueLbl);
+      const dueRow=document.createElement('div');dueRow.className='inline-form-row';
+      const dateInp=document.createElement('input');dateInp.type='date';dateInp.id='inlineEditDate';dateInp.value=t.dueDate||'';dateInp.style.flex='1';
+      const timeWrap=document.createElement('div');timeWrap.style.cssText='display:flex;align-items:center;gap:4px';
+      const timeInp=document.createElement('input');timeInp.type='time';timeInp.id='inlineEditTime';timeInp.value=t.dueTime||'';timeInp.style.width='110px';
+      const clearTime=document.createElement('button');clearTime.className='chip-secondary';clearTime.style.cssText='font-size:10px;padding:2px 7px;flex-shrink:0';clearTime.textContent='✕';clearTime.title='Clear time';
+      clearTime.addEventListener('mousedown',function(e){e.preventDefault();});
+      clearTime.addEventListener('click',function(){timeInp.value='';});
+      timeWrap.appendChild(timeInp);timeWrap.appendChild(clearTime);
+      dueRow.appendChild(dateInp);dueRow.appendChild(timeWrap);d.appendChild(dueRow);
+
+      // Sub-tasks label
+      const stepsLbl=document.createElement('div');stepsLbl.className='inline-form-lbl';stepsLbl.style.marginTop='4px';stepsLbl.innerHTML='Sub-tasks <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span>';d.appendChild(stepsLbl);
+
+      // Sub-tasks list — built directly so it's immediately in the DOM
+      const stepsList=document.createElement('div');stepsList.id='taskEditStepsList';stepsList.style.cssText='display:flex;flex-direction:column;gap:5px;margin-bottom:4px';d.appendChild(stepsList);
+
+      // Populate steps immediately — no setTimeout needed
+      renderTaskEditSteps();
+
+      // Add step input row
+      const addStepRow=document.createElement('div');addStepRow.style.cssText='display:flex;gap:5px';
+      const stepInp=document.createElement('input');stepInp.type='text';stepInp.id='taskEditStepInput';stepInp.placeholder='Add a sub-task...';stepInp.style.cssText='flex:1;font-size:12px';
+      stepInp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addTaskEditStep();}});
+      const addStepBtn=document.createElement('button');addStepBtn.className='chip-primary';addStepBtn.style.cssText='font-size:11px;flex-shrink:0';addStepBtn.textContent='+ Step';
+      addStepBtn.addEventListener('mousedown',function(e){e.preventDefault();});
+      addStepBtn.addEventListener('click',addTaskEditStep);
+      addStepRow.appendChild(stepInp);addStepRow.appendChild(addStepBtn);d.appendChild(addStepRow);
+
+      // Actions row
+      const actionsRow=document.createElement('div');actionsRow.className='inline-form-actions';actionsRow.style.justifyContent='space-between';
+      const delBtn2=document.createElement('button');delBtn2.className='chip-secondary';delBtn2.style.cssText='font-size:11px;color:var(--red);border-color:var(--red)';delBtn2.textContent='Delete';
+      delBtn2.addEventListener('mousedown',function(e){e.preventDefault();});
+      delBtn2.addEventListener('click',function(){if(confirm('Delete this task?'))delTask(list,t.id);});
+      const rightBtns=document.createElement('div');rightBtns.style.cssText='display:flex;gap:6px';
+      const cancelBtn=document.createElement('button');cancelBtn.className='chip-secondary';cancelBtn.style.fontSize='11px';cancelBtn.textContent='Cancel';
+      cancelBtn.addEventListener('mousedown',function(e){e.preventDefault();});
+      cancelBtn.addEventListener('click',cancelInlineEdit);
+      const saveBtn=document.createElement('button');saveBtn.className='chip-primary';saveBtn.style.fontSize='11px';saveBtn.textContent='Save';
+      saveBtn.addEventListener('mousedown',function(e){e.preventDefault();});
+      saveBtn.addEventListener('click',function(){confirmInlineEdit(list,t.id);});
+      rightBtns.appendChild(cancelBtn);rightBtns.appendChild(saveBtn);
+      actionsRow.appendChild(delBtn2);actionsRow.appendChild(rightBtns);d.appendChild(actionsRow);
+
+      // Win checkbox for work tasks
       if(list==='work'){
         const winLabel=document.createElement('label');
-        winLabel.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0;border-top:0.5px solid var(--border);margin-top:2px;order:-1';
+        winLabel.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0;border-top:0.5px solid var(--border);margin-top:2px';
         winLabel.innerHTML='<input type="checkbox" id="inlineEditWin" '+(t.isWin?'checked':'')+' style="accent-color:var(--amber);width:16px;height:16px;cursor:pointer;flex-shrink:0"><span style="font-size:12px;font-weight:500;color:var(--text)">🏆 Mark as a Win when completed</span>';
-        d.insertBefore(winLabel,d.querySelector('.inline-form-actions'));
+        d.insertBefore(winLabel,actionsRow);
       }
-      // Load existing subtasks into editor — defer until DOM is painted
-      _taskEditSteps=(t.steps||[]).map(s=>({...s}));
-      setTimeout(function(){
-        renderTaskEditSteps();
-        const inp=document.getElementById('inlineEditTitle');
-        if(inp){inp.focus();inp.select();}
-      },30);
+
+      // Focus title
+      setTimeout(function(){nameInp.focus();nameInp.select();},20);
     } else {
       // Build due badge
       let dueBadge='';
