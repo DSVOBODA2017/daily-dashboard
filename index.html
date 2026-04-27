@@ -1924,18 +1924,29 @@ function makeStepEditorRow(s, i, opts){
 
     grip.addEventListener('pointermove',function onMove(e){
       ghost.style.top=(e.clientY-offsetY)+'px';
-      // Find which row we're hovering over
-      ghost.style.display='none';
-      const el=document.elementFromPoint(e.clientX,e.clientY);
-      ghost.style.display='flex';
-      const targetRow=el&&el.closest('[data-idx]');
-      // Clear highlights
-      container.querySelectorAll('[data-idx]').forEach(function(r){r.style.borderColor='';r.style.borderStyle='solid';});
-      if(targetRow&&targetRow!==row){
-        targetRow.style.borderColor='var(--blue)';
-        currentTarget=targetRow;
-      } else {
-        currentTarget=null;
+      // Find insertion point by checking midpoint of each sibling row
+      const rows=Array.from(container.querySelectorAll('[data-idx]'));
+      container.querySelectorAll('[data-idx]').forEach(function(r){
+        r.style.borderTop='';r.style.borderBottom='';
+      });
+      currentTarget=null;
+      let bestRow=null,bestDist=Infinity;
+      rows.forEach(function(r){
+        if(r===row) return;
+        const rect=r.getBoundingClientRect();
+        const mid=rect.top+rect.height/2;
+        const dist=Math.abs(e.clientY-mid);
+        if(dist<bestDist){bestDist=dist;bestRow=r;}
+      });
+      if(bestRow){
+        const rect=bestRow.getBoundingClientRect();
+        const mid=rect.top+rect.height/2;
+        if(e.clientY<mid){
+          bestRow.style.borderTop='2px solid var(--blue)';
+        } else {
+          bestRow.style.borderBottom='2px solid var(--blue)';
+        }
+        currentTarget={row:bestRow,before:e.clientY<rect.top+rect.height/2};
       }
     });
 
@@ -1944,12 +1955,23 @@ function makeStepEditorRow(s, i, opts){
       ghost.remove();
       row.style.opacity='';
       grip.style.cursor='grab';
-      container.querySelectorAll('[data-idx]').forEach(function(r){r.style.borderColor='';});
+      container.querySelectorAll('[data-idx]').forEach(function(r){
+        r.style.borderTop='';r.style.borderBottom='';r.style.borderColor='';
+      });
       grip.removeEventListener('pointermove',onMove);
       grip.removeEventListener('pointerup',onUp);
       if(currentTarget){
         const from=+row.dataset.idx;
-        const to=+currentTarget.dataset.idx;
+        const toRow=currentTarget.row;
+        const before=currentTarget.before;
+        let to=+toRow.dataset.idx;
+        // If inserting after, and target is below source, to stays; if above source adjust
+        if(!before) to=to; // insert after target
+        // Adjust for the removal of the dragged item
+        if(from<to && !before) to=to; // dragging down, insert after
+        if(from>to && before) to=to; // dragging up, insert before
+        if(from<to && before) to=to-1; // dragging down but insert before target
+        if(from>to && !before) to=to+1; // dragging up but insert after target
         if(from!==to) opts.onReorder(from,to);
       }
     });
