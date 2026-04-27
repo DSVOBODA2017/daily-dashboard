@@ -258,6 +258,10 @@
 
   /* SUB-TASK ROWS */
   .sub-task-row { display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: var(--surface); border: 1.5px solid var(--border2); border-radius: 7px; transition: background 0.12s, border-color 0.12s; cursor:default; touch-action: pan-y; }
+  .sub-drag-handle { cursor: grab; color: var(--text3); padding: 2px 3px; flex-shrink: 0; display: flex; align-items: center; border-radius: 3px; touch-action: none; }
+  .sub-drag-handle:hover { color: var(--text2); background: var(--surface2); }
+  .sub-task-row.sub-dragging { opacity: 0.4; }
+  .sub-task-row.sub-drag-over { border-color: var(--blue); background: var(--surface2); }
   .sub-task-row:hover { border-color: var(--text3); }
   .sub-task-row.done-sub { opacity: 0.55; }
   .sub-task-row.done-sub .sub-text { text-decoration: line-through; color: var(--text3); }
@@ -1053,7 +1057,7 @@ function toggleShowAllHabits(group){
 }
 
 let addTarget='',editTarget={list:'',id:0};
-let timerTotal=25*60,timerLeft=25*60,timerRunning=false,timerIv=null;
+let timerTotal=25*60,timerLeft=25*60,timerRunning=false,timerIv=null,timerEndAt=0;
 let moodChart=null,dayChart=null;
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -1299,32 +1303,7 @@ function renderTasks(list,cid,countId){
         const stepsWrap=document.createElement('div');
         stepsWrap.style.cssText='margin-top:6px;display:flex;flex-direction:column;gap:5px';
         t.steps.forEach(function(s,si){
-          const row=document.createElement('div');
-          row.className='sub-task-row'+(s.done?' done-sub':'');
-          const nameSpan=document.createElement('span');
-          nameSpan.className='sub-text';
-          nameSpan.innerHTML=linkify(s.text);
-          const btnDel=document.createElement('button');
-          btnDel.className='sq-btn del-btn';
-          btnDel.style.cssText='margin-left:0;flex-shrink:0';
-          btnDel.innerHTML=DEL;
-          btnDel.title='Remove sub-task';
-          btnDel.addEventListener('mousedown',function(e){e.stopPropagation();});
-          btnDel.addEventListener('click',function(e){e.stopPropagation();removeTaskStepFromList(list,t.id,si);});
-          const CHECK_DARK='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-          const btnDone=document.createElement('button');
-          btnDone.className='sq-btn'+(s.done?' is-done':' done-btn');
-          btnDone.style.cssText='flex-shrink:0';
-          btnDone.innerHTML=s.done?CW:CHECK_DARK;
-          btnDone.title='Toggle done';
-          btnDone.addEventListener('mousedown',function(e){e.stopPropagation();});
-          btnDone.addEventListener('click',function(e){e.stopPropagation();toggleTaskStep(list,t.id,si);});
-          row.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 10px';
-          row.appendChild(nameSpan);
-          row.appendChild(btnDel);
-          row.appendChild(btnDone);
-          row.addEventListener('click',function(e){if(e.target.closest('button')||e.target.closest('a'))return;toggleTaskStep(list,t.id,si);});
-          stepsWrap.appendChild(row);
+          stepsWrap.appendChild(buildTaskStepRow(s,si,list,t.id,stepsWrap));
         });
         d.appendChild(stepsWrap);
       }
@@ -1567,32 +1546,7 @@ function renderHabitGroup(group){
       const stepsWrap=document.createElement('div');
       stepsWrap.style.cssText='margin-top:6px;display:flex;flex-direction:column;gap:5px';
       h.steps.forEach(function(s,si){
-        const row=document.createElement('div');
-        row.className='sub-task-row'+(s.done?' done-sub':'');
-        row.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 10px';
-        const nameSpan=document.createElement('span');
-        nameSpan.className='sub-text';
-        nameSpan.innerHTML=linkify(s.text);
-        const btnDel=document.createElement('button');
-        btnDel.className='sq-btn del-btn';
-        btnDel.style.cssText='margin-left:0;flex-shrink:0';
-        btnDel.innerHTML=DEL_H;
-        btnDel.title='Remove';
-        btnDel.addEventListener('mousedown',function(e){e.stopPropagation();});
-        btnDel.addEventListener('click',function(e){e.stopPropagation();removeHabitStep(h.id,si);});
-        const CHECK_DARK_H='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-        const btnDone=document.createElement('button');
-        btnDone.className='sq-btn'+(s.done?' is-done':' done-btn');
-        btnDone.style.cssText='flex-shrink:0';
-        btnDone.innerHTML=s.done?CW_H:CHECK_DARK_H;
-        btnDone.title='Toggle done';
-        btnDone.addEventListener('mousedown',function(e){e.stopPropagation();});
-        btnDone.addEventListener('click',function(e){e.stopPropagation();toggleStep(h.id,si);});
-        row.appendChild(nameSpan);
-        row.appendChild(btnDel);
-        row.appendChild(btnDone);
-        row.addEventListener('click',function(e){if(e.target.closest('button')||e.target.closest('a'))return;toggleStep(h.id,si);});
-        stepsWrap.appendChild(row);
+        stepsWrap.appendChild(buildHabitStepRow(s,si,h.id,stepsWrap));
       });
       d.appendChild(stepsWrap);
     }
@@ -1995,25 +1949,35 @@ function showRecapModal(unaddressed){
     doneBtn.title='Done';
     (function(habit,rw,sb,db){
       sb.addEventListener('click',function(){
-        habit.skipped=true;habit.done=false;habit.streak=0;habit.lastDone='';
+        // Only log yesterday — never touch today's done/skipped flags
         const yesterday=new Date(todayKey);yesterday.setDate(yesterday.getDate()-1);
         const yKey=yesterday.toISOString().slice(0,10);
         if(!habit.log) habit.log=[];
         habit.log=habit.log.filter(e=>e.date!==yKey);
         habit.log.push({date:yKey,status:'skip',ts:Date.now()});
+        // Streak was already broken since it was missed — just ensure it's 0
+        // but only if lastDone wasn't already yesterday (meaning they did do it)
+        if(habit.lastDone!==yKey){
+          habit.streak=0;
+        }
         rw.style.opacity='0.5';rw.style.borderColor='var(--red)';
         sb.disabled=true;db.disabled=true;
         save(SK.habits,habits);
       });
       db.addEventListener('click',function(){
+        // Only log yesterday — never touch today's done/skipped flags
         const yesterday=new Date(todayKey);yesterday.setDate(yesterday.getDate()-1);
         const yKey=yesterday.toISOString().slice(0,10);
-        habit.done=true;habit.skipped=false;
-        if(habit.lastDone!==yKey){habit.streak++;habit.lastDone=yKey;}
-        if(habit.streak>=(habit.bestStreak||0)) habit.bestStreak=habit.streak;
         if(!habit.log) habit.log=[];
         habit.log=habit.log.filter(e=>e.date!==yKey);
         habit.log.push({date:yKey,status:'done',ts:Date.now()});
+        // Update streak for yesterday only if not already credited
+        if(habit.lastDone!==yKey){
+          habit.streak++;
+          habit.lastDone=yKey;
+        }
+        if(habit.streak>=(habit.bestStreak||0)) habit.bestStreak=habit.streak;
+        // DO NOT set habit.done or habit.skipped — those are today's flags
         rw.style.opacity='0.5';rw.style.borderColor='var(--green)';
         db.className='sq-btn is-done';
         sb.disabled=true;db.disabled=true;
@@ -2320,25 +2284,39 @@ function _doChime(ctx){
 }
 
 function timerToggle(){
-  if(timerRunning){clearInterval(timerIv);timerRunning=false;document.getElementById('timerBtn').textContent='Resume';}
-  else{
+  if(timerRunning){
+    // Pause — save remaining time
+    clearInterval(timerIv);timerRunning=false;
+    timerLeft=Math.max(0,Math.round((timerEndAt-Date.now())/1000));
+    timerEndAt=0;
+    document.getElementById('timerBtn').textContent='Resume';
+    updateTimerUI();
+  } else {
     if(timerLeft<=0){timerReset();return;}
-    timerRunning=true;document.getElementById('timerBtn').textContent='Pause';
-    // Pre-warm audio context so it's ready when timer expires
+    // Start/Resume — record absolute end time
+    timerEndAt=Date.now()+(timerLeft*1000);
+    timerRunning=true;
+    document.getElementById('timerBtn').textContent='Pause';
+    // Pre-warm audio context
     try{const c=getAudioCtx();if(c.state==='suspended')c.resume();}catch(e){}
     drawPie();
     startDropAnim();
-    timerIv=setInterval(()=>{
-      timerLeft--;updateTimerUI();
-      if(timerLeft<=0){
-        clearInterval(timerIv);timerRunning=false;
-        stopDropAnim();
-        playChime();
-        const d=document.getElementById('timerDisp');
-        d.style.color='var(--green)';
-        setTimeout(()=>d.style.color='',3000);
-      }
-    },1000);
+    timerIv=setInterval(timerTick,500); // tick every 500ms for accuracy
+  }
+}
+
+function timerTick(){
+  if(!timerRunning) return;
+  timerLeft=Math.max(0,Math.round((timerEndAt-Date.now())/1000));
+  updateTimerUI();
+  if(timerLeft<=0){
+    clearInterval(timerIv);timerRunning=false;
+    timerEndAt=0;
+    stopDropAnim();
+    playChime();
+    const d=document.getElementById('timerDisp');
+    d.style.color='var(--green)';
+    setTimeout(()=>d.style.color='',3000);
   }
 }
 function parseTimerInput(){
@@ -2366,12 +2344,11 @@ function timerInputChanged(){
 }
 
 function timerReset(){
-  clearInterval(timerIv);timerRunning=false;
+  clearInterval(timerIv);timerRunning=false;timerEndAt=0;
   if(chimeLooping) stopChime();
   const btn=document.getElementById('timerBtn');
   btn.onclick=timerToggle;
   btn.className='chip-success timer-action-btn';
-  // Clear any inline styles set when timer expired
   btn.style.background='';
   btn.style.borderColor='';
   btn.style.color='';
@@ -2381,6 +2358,18 @@ function timerReset(){
   updateTimerUI();
   startDropAnim();
 }
+
+// Snap timer display immediately when tab becomes visible again
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden&&timerRunning&&timerEndAt>0){
+    timerLeft=Math.max(0,Math.round((timerEndAt-Date.now())/1000));
+    updateTimerUI();
+    if(timerLeft<=0){
+      clearInterval(timerIv);timerRunning=false;timerEndAt=0;
+      stopDropAnim();playChime();
+    }
+  }
+});
 function updateTimerUI(){
   const h=Math.floor(timerLeft/3600);
   const m=Math.floor((timerLeft%3600)/60);
