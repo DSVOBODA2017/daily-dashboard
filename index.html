@@ -1922,16 +1922,14 @@ function makeStepEditorRow(s, i, opts){
 
     let currentTarget=null;
 
-    grip.addEventListener('pointermove',function onMove(e){
+    var onMove=function(e){
       ghost.style.top=(e.clientY-offsetY)+'px';
-      // Find insertion point by checking midpoint of each sibling row
-      const rows=Array.from(container.querySelectorAll('[data-idx]'));
       container.querySelectorAll('[data-idx]').forEach(function(r){
         r.style.borderTop='';r.style.borderBottom='';
       });
       currentTarget=null;
       let bestRow=null,bestDist=Infinity;
-      rows.forEach(function(r){
+      container.querySelectorAll('[data-idx]').forEach(function(r){
         if(r===row) return;
         const rect=r.getBoundingClientRect();
         const mid=rect.top+rect.height/2;
@@ -1940,41 +1938,38 @@ function makeStepEditorRow(s, i, opts){
       });
       if(bestRow){
         const rect=bestRow.getBoundingClientRect();
-        const mid=rect.top+rect.height/2;
-        if(e.clientY<mid){
+        if(e.clientY<rect.top+rect.height/2){
           bestRow.style.borderTop='2px solid var(--blue)';
+          currentTarget={row:bestRow,before:true};
         } else {
           bestRow.style.borderBottom='2px solid var(--blue)';
+          currentTarget={row:bestRow,before:false};
         }
-        currentTarget={row:bestRow,before:e.clientY<rect.top+rect.height/2};
       }
-    });
+    };
 
-    grip.addEventListener('pointerup',function onUp(){
+    var onUp=function(){
       grip.releasePointerCapture(e.pointerId);
       ghost.remove();
       row.style.opacity='';
       grip.style.cursor='grab';
       container.querySelectorAll('[data-idx]').forEach(function(r){
-        r.style.borderTop='';r.style.borderBottom='';r.style.borderColor='';
+        r.style.borderTop='';r.style.borderBottom='';
       });
       grip.removeEventListener('pointermove',onMove);
       grip.removeEventListener('pointerup',onUp);
       if(currentTarget){
         const from=+row.dataset.idx;
-        const toRow=currentTarget.row;
+        let to=+currentTarget.row.dataset.idx;
         const before=currentTarget.before;
-        let to=+toRow.dataset.idx;
-        // If inserting after, and target is below source, to stays; if above source adjust
-        if(!before) to=to; // insert after target
-        // Adjust for the removal of the dragged item
-        if(from<to && !before) to=to; // dragging down, insert after
-        if(from>to && before) to=to; // dragging up, insert before
-        if(from<to && before) to=to-1; // dragging down but insert before target
-        if(from>to && !before) to=to+1; // dragging up but insert after target
+        if(before&&from<to) to=to-1;
+        if(!before&&from>to) to=to+1;
         if(from!==to) opts.onReorder(from,to);
       }
-    });
+    };
+
+    grip.addEventListener('pointermove',onMove);
+    grip.addEventListener('pointerup',onUp);
   });
 
   return row;
