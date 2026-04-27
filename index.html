@@ -1153,19 +1153,20 @@ function renderTasks(list,cid,countId){
       const stepsLbl=document.createElement('div');stepsLbl.className='inline-form-lbl';stepsLbl.style.marginTop='4px';stepsLbl.innerHTML='Sub-tasks <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span>';d.appendChild(stepsLbl);
 
       // Sub-tasks list — built directly so it's immediately in the DOM
-      const stepsList=document.createElement('div');stepsList.id='taskEditStepsList';stepsList.style.cssText='display:flex;flex-direction:column;gap:5px;margin-bottom:4px';d.appendChild(stepsList);
-
-      // Pass stepsList directly — it's already in DOM as child of d
-      renderTaskEditSteps(stepsList);
-
-      // Add step input row
-      const addStepRow=document.createElement('div');addStepRow.style.cssText='display:flex;gap:5px';
+      // Add step input row — ABOVE the list
+      const addStepRow=document.createElement('div');addStepRow.style.cssText='display:flex;gap:5px;margin-bottom:6px';
       const stepInp=document.createElement('input');stepInp.type='text';stepInp.id='taskEditStepInput';stepInp.placeholder='Add a sub-task...';stepInp.style.cssText='flex:1;font-size:12px';
       stepInp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addTaskEditStep();}});
       const addStepBtn=document.createElement('button');addStepBtn.className='chip-primary';addStepBtn.style.cssText='font-size:11px;flex-shrink:0';addStepBtn.textContent='+ Step';
       addStepBtn.addEventListener('mousedown',function(e){e.preventDefault();});
       addStepBtn.addEventListener('click',addTaskEditStep);
       addStepRow.appendChild(stepInp);addStepRow.appendChild(addStepBtn);d.appendChild(addStepRow);
+
+      // Sub-task list below the input
+      const stepsList=document.createElement('div');stepsList.id='taskEditStepsList';stepsList.style.cssText='display:flex;flex-direction:column;gap:5px;margin-bottom:4px';d.appendChild(stepsList);
+
+      // Pass stepsList directly — it's already in DOM as child of d
+      renderTaskEditSteps(stepsList);
 
       // Actions row
       const actionsRow=document.createElement('div');actionsRow.className='inline-form-actions';actionsRow.style.justifyContent='space-between';
@@ -1864,20 +1865,26 @@ let _stepEditorDragSrc=null;
 
 function makeStepEditorRow(s, i, opts){
   const DEL='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+  const GRIP='<svg width="12" height="16" viewBox="0 0 12 18" fill="currentColor"><circle cx="4" cy="3" r="1.5"/><circle cx="8" cy="3" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="8" cy="9" r="1.5"/><circle cx="4" cy="15" r="1.5"/><circle cx="8" cy="15" r="1.5"/></svg>';
 
   const row=document.createElement('div');
   row.dataset.idx=i;
-  row.style.cssText='display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:4px 6px';
+  row.style.cssText='display:flex;align-items:center;gap:5px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:6px;padding:5px 7px;user-select:none;box-sizing:border-box';
+
+  // Grip handle — pointer events drag
+  const grip=document.createElement('span');
+  grip.innerHTML=GRIP;
+  grip.style.cssText='color:var(--text3);cursor:grab;flex-shrink:0;display:flex;align-items:center;touch-action:none;padding:0 2px';
+  grip.title='Drag to reorder';
 
   // Editable name input
   const inp=document.createElement('input');
   inp.type='text';
   inp.value=s.text;
-  inp.style.cssText='flex:1;font-size:12px;border:none;background:transparent;color:var(--text);outline:none;min-width:0;padding:1px 4px';
+  inp.style.cssText='flex:1;font-size:12px;border:none;background:transparent;color:var(--text);outline:none;min-width:0;padding:1px 4px;touch-action:auto;cursor:text';
   inp.addEventListener('change',function(){opts.onNameChange(inp.value.trim()||s.text);});
   inp.addEventListener('blur',function(){opts.onNameChange(inp.value.trim()||s.text);});
-  inp.addEventListener('mousedown',function(e){e.stopPropagation();});
-  inp.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+  inp.addEventListener('pointerdown',function(e){e.stopPropagation();});
 
   // Delete button
   const delBtn=document.createElement('button');
@@ -1885,12 +1892,69 @@ function makeStepEditorRow(s, i, opts){
   delBtn.style.cssText='width:24px;height:24px;flex-shrink:0';
   delBtn.innerHTML=DEL;
   delBtn.title='Delete';
-  delBtn.addEventListener('mousedown',function(e){e.preventDefault();e.stopPropagation();});
-  delBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+  delBtn.addEventListener('pointerdown',function(e){e.preventDefault();e.stopPropagation();});
   delBtn.addEventListener('click',function(e){e.stopPropagation();opts.onDelete();});
 
+  row.appendChild(grip);
   row.appendChild(inp);
   row.appendChild(delBtn);
+
+  // ── Pointer-based drag (works on iOS Safari, Android, Desktop) ──────────
+  grip.addEventListener('pointerdown',function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    grip.setPointerCapture(e.pointerId);
+    grip.style.cursor='grabbing';
+
+    const container=row.parentElement;
+    if(!container) return;
+
+    // Ghost element
+    const ghost=row.cloneNode(true);
+    ghost.style.cssText='position:fixed;z-index:9999;pointer-events:none;opacity:0.85;background:var(--surface);border:1.5px solid var(--blue);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.18);width:'+row.offsetWidth+'px;padding:5px 7px;display:flex;align-items:center;gap:5px;box-sizing:border-box';
+    document.body.appendChild(ghost);
+
+    const rowRect=row.getBoundingClientRect();
+    const offsetY=e.clientY-rowRect.top;
+    ghost.style.left=rowRect.left+'px';
+    ghost.style.top=(e.clientY-offsetY)+'px';
+    row.style.opacity='0.4';
+
+    let currentTarget=null;
+
+    grip.addEventListener('pointermove',function onMove(e){
+      ghost.style.top=(e.clientY-offsetY)+'px';
+      // Find which row we're hovering over
+      ghost.style.display='none';
+      const el=document.elementFromPoint(e.clientX,e.clientY);
+      ghost.style.display='flex';
+      const targetRow=el&&el.closest('[data-idx]');
+      // Clear highlights
+      container.querySelectorAll('[data-idx]').forEach(function(r){r.style.borderColor='';r.style.borderStyle='solid';});
+      if(targetRow&&targetRow!==row){
+        targetRow.style.borderColor='var(--blue)';
+        currentTarget=targetRow;
+      } else {
+        currentTarget=null;
+      }
+    });
+
+    grip.addEventListener('pointerup',function onUp(){
+      grip.releasePointerCapture(e.pointerId);
+      ghost.remove();
+      row.style.opacity='';
+      grip.style.cursor='grab';
+      container.querySelectorAll('[data-idx]').forEach(function(r){r.style.borderColor='';});
+      grip.removeEventListener('pointermove',onMove);
+      grip.removeEventListener('pointerup',onUp);
+      if(currentTarget){
+        const from=+row.dataset.idx;
+        const to=+currentTarget.dataset.idx;
+        if(from!==to) opts.onReorder(from,to);
+      }
+    });
+  });
+
   return row;
 }
 
@@ -1905,13 +1969,10 @@ function renderTaskAddSteps(){
   el.innerHTML='';
   _taskAddSteps.forEach(function(s,i){
     const r=makeStepEditorRow(s,i,{
+      isLast:i===_taskAddSteps.length-1,
       onNameChange:function(v){_taskAddSteps[i].text=v;},
       onDelete:function(){_taskAddSteps.splice(i,1);renderTaskAddSteps();},
       onReorder:function(from,to){const[item]=_taskAddSteps.splice(from,1);_taskAddSteps.splice(to,0,item);renderTaskAddSteps();}
-    });
-    r.addEventListener('step-reorder-mouse',function(e){
-      const{from,to}=e.detail;
-      const[item]=_taskAddSteps.splice(from,1);_taskAddSteps.splice(to,0,item);renderTaskAddSteps();
     });
     el.appendChild(r);
   });
@@ -1925,11 +1986,11 @@ function addTaskAddStep(){
 function removeTaskAddStep(i){_taskAddSteps.splice(i,1);renderTaskAddSteps();}
 
 function renderTaskEditSteps(containerEl){
-  // Accept direct element reference OR fall back to getElementById
   const el=containerEl||document.getElementById('taskEditStepsList');if(!el)return;
   el.innerHTML='';
   _taskEditSteps.forEach(function(s,i){
     const r=makeStepEditorRow(s,i,{
+      isLast:i===_taskEditSteps.length-1,
       onNameChange:function(v){_taskEditSteps[i].text=v;},
       onDelete:function(){_taskEditSteps.splice(i,1);renderTaskEditSteps(el);},
       onReorder:function(from,to){const[item]=_taskEditSteps.splice(from,1);_taskEditSteps.splice(to,0,item);renderTaskEditSteps(el);}
