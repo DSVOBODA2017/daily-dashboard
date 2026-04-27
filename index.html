@@ -1155,8 +1155,8 @@ function renderTasks(list,cid,countId){
       // Sub-tasks list — built directly so it's immediately in the DOM
       const stepsList=document.createElement('div');stepsList.id='taskEditStepsList';stepsList.style.cssText='display:flex;flex-direction:column;gap:5px;margin-bottom:4px';d.appendChild(stepsList);
 
-      // Populate steps immediately — no setTimeout needed
-      renderTaskEditSteps();
+      // Pass stepsList directly — it's already in DOM as child of d
+      renderTaskEditSteps(stepsList);
 
       // Add step input row
       const addStepRow=document.createElement('div');addStepRow.style.cssText='display:flex;gap:5px';
@@ -1864,23 +1864,16 @@ let _stepEditorDragSrc=null;
 
 function makeStepEditorRow(s, i, opts){
   const DEL='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
-  const DRAG='<svg width="9" height="13" viewBox="0 0 9 15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="2" x2="3" y2="13"/><line x1="6" y1="2" x2="6" y2="13"/></svg>';
 
   const row=document.createElement('div');
   row.dataset.idx=i;
-  row.style.cssText='display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:4px 6px;user-select:none';
-
-  // Drag handle
-  const handle=document.createElement('span');
-  handle.style.cssText='cursor:grab;color:var(--text3);flex-shrink:0;display:flex;align-items:center;padding:4px;touch-action:none';
-  handle.innerHTML=DRAG;
-  handle.title='Drag to reorder';
+  row.style.cssText='display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:4px 6px';
 
   // Editable name input
   const inp=document.createElement('input');
   inp.type='text';
   inp.value=s.text;
-  inp.style.cssText='flex:1;font-size:12px;border:none;background:transparent;color:var(--text);outline:none;min-width:0;padding:1px 2px;touch-action:auto';
+  inp.style.cssText='flex:1;font-size:12px;border:none;background:transparent;color:var(--text);outline:none;min-width:0;padding:1px 4px';
   inp.addEventListener('change',function(){opts.onNameChange(inp.value.trim()||s.text);});
   inp.addEventListener('blur',function(){opts.onNameChange(inp.value.trim()||s.text);});
   inp.addEventListener('mousedown',function(e){e.stopPropagation();});
@@ -1896,111 +1889,15 @@ function makeStepEditorRow(s, i, opts){
   delBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
   delBtn.addEventListener('click',function(e){e.stopPropagation();opts.onDelete();});
 
-  row.appendChild(handle);
   row.appendChild(inp);
   row.appendChild(delBtn);
-
-  // ── Touch drag (iOS/Android) ──────────────────────────────────────────────
-  let touchDragging=false,touchGhost=null,touchStartY=0;
-
-  handle.addEventListener('touchstart',function(e){
-    e.stopPropagation();
-    touchDragging=true;
-    touchStartY=e.touches[0].clientY;
-    row.style.opacity='0.5';
-    // Create ghost label
-    touchGhost=document.createElement('div');
-    touchGhost.textContent=s.text;
-    touchGhost.style.cssText='position:fixed;left:16px;right:16px;background:var(--surface);border:1.5px solid var(--blue);border-radius:8px;padding:7px 12px;font-size:12px;color:var(--text);pointer-events:none;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.15);opacity:0.95';
-    touchGhost.style.top=(e.touches[0].clientY-20)+'px';
-    document.body.appendChild(touchGhost);
-  },{passive:true});
-
-  handle.addEventListener('touchmove',function(e){
-    if(!touchDragging) return;
-    e.preventDefault();
-    const ty=e.touches[0].clientY;
-    if(touchGhost) touchGhost.style.top=(ty-20)+'px';
-    // Highlight target row
-    const parent=row.parentElement;
-    if(!parent) return;
-    parent.querySelectorAll('[data-idx]').forEach(function(r){
-      r.style.borderColor='';
-      const rect=r.getBoundingClientRect();
-      if(ty>=rect.top&&ty<=rect.bottom&&r!==row){
-        r.style.borderColor='var(--blue)';
-      }
-    });
-  },{passive:false});
-
-  handle.addEventListener('touchend',function(e){
-    if(!touchDragging) return;
-    touchDragging=false;
-    row.style.opacity='';
-    if(touchGhost){touchGhost.remove();touchGhost=null;}
-    const ty=e.changedTouches[0].clientY;
-    const parent=row.parentElement;
-    if(!parent) return;
-    let targetRow=null;
-    parent.querySelectorAll('[data-idx]').forEach(function(r){
-      r.style.borderColor='';
-      const rect=r.getBoundingClientRect();
-      if(ty>=rect.top&&ty<=rect.bottom&&r!==row) targetRow=r;
-    });
-    if(targetRow){
-      const from=+row.dataset.idx;
-      const to=+targetRow.dataset.idx;
-      if(from!==to) opts.onReorder(from,to);
-    }
-  },{passive:true});
-
-  // ── Mouse drag (desktop) ─────────────────────────────────────────────────
-  handle.addEventListener('mousedown',function(e){
-    e.preventDefault();e.stopPropagation();
-    _stepEditorDragSrc=row;
-    row.style.opacity='0.5';
-    document.addEventListener('mousemove',onStepEditorMouseMove);
-    document.addEventListener('mouseup',onStepEditorMouseUp);
-  });
-
   return row;
 }
 
-function onStepEditorMouseMove(e){
-  if(!_stepEditorDragSrc) return;
-  const parent=_stepEditorDragSrc.parentElement;
-  if(!parent) return;
-  parent.querySelectorAll('[data-idx]').forEach(function(r){
-    r.style.borderColor='';
-    const rect=r.getBoundingClientRect();
-    if(e.clientY>=rect.top&&e.clientY<=rect.bottom&&r!==_stepEditorDragSrc){
-      r.style.borderColor='var(--blue)';
-    }
-  });
-}
-
+function onStepEditorMouseMove(e){}
 function onStepEditorMouseUp(e){
   document.removeEventListener('mousemove',onStepEditorMouseMove);
   document.removeEventListener('mouseup',onStepEditorMouseUp);
-  if(!_stepEditorDragSrc) return;
-  const src=_stepEditorDragSrc;
-  src.style.opacity='';
-  _stepEditorDragSrc=null;
-  const parent=src.parentElement;
-  if(!parent) return;
-  let targetRow=null;
-  parent.querySelectorAll('[data-idx]').forEach(function(r){
-    r.style.borderColor='';
-    const rect=r.getBoundingClientRect();
-    if(e.clientY>=rect.top&&e.clientY<=rect.bottom&&r!==src) targetRow=r;
-  });
-  if(targetRow){
-    // Find the opts.onReorder — trigger via custom event
-    const from=+src.dataset.idx;
-    const to=+targetRow.dataset.idx;
-    const ev=new CustomEvent('step-reorder-mouse',{detail:{from,to},bubbles:true});
-    src.dispatchEvent(ev);
-  }
 }
 
 function renderTaskAddSteps(){
@@ -2027,18 +1924,15 @@ function addTaskAddStep(){
 }
 function removeTaskAddStep(i){_taskAddSteps.splice(i,1);renderTaskAddSteps();}
 
-function renderTaskEditSteps(){
-  const el=document.getElementById('taskEditStepsList');if(!el)return;
+function renderTaskEditSteps(containerEl){
+  // Accept direct element reference OR fall back to getElementById
+  const el=containerEl||document.getElementById('taskEditStepsList');if(!el)return;
   el.innerHTML='';
   _taskEditSteps.forEach(function(s,i){
     const r=makeStepEditorRow(s,i,{
       onNameChange:function(v){_taskEditSteps[i].text=v;},
-      onDelete:function(){_taskEditSteps.splice(i,1);renderTaskEditSteps();},
-      onReorder:function(from,to){const[item]=_taskEditSteps.splice(from,1);_taskEditSteps.splice(to,0,item);renderTaskEditSteps();}
-    });
-    r.addEventListener('step-reorder-mouse',function(e){
-      const{from,to}=e.detail;
-      const[item]=_taskEditSteps.splice(from,1);_taskEditSteps.splice(to,0,item);renderTaskEditSteps();
+      onDelete:function(){_taskEditSteps.splice(i,1);renderTaskEditSteps(el);},
+      onReorder:function(from,to){const[item]=_taskEditSteps.splice(from,1);_taskEditSteps.splice(to,0,item);renderTaskEditSteps(el);}
     });
     el.appendChild(r);
   });
@@ -2047,7 +1941,9 @@ function addTaskEditStep(){
   const inp=document.getElementById('taskEditStepInput');
   const v=inp?inp.value.trim():'';if(!v)return;
   _taskEditSteps.push({text:v,done:false});
-  inp.value='';renderTaskEditSteps();
+  inp.value='';
+  // Use getElementById since by this point the form IS in the DOM
+  renderTaskEditSteps(document.getElementById('taskEditStepsList'));
 }
 function removeTaskEditStep(i){_taskEditSteps.splice(i,1);renderTaskEditSteps();}
 
@@ -2062,162 +1958,41 @@ function removeHabitStep(habitId,stepIdx){
   save(SK.habits,habits);renderHabits();
 }
 
-// ── Shared sub-task row builder ───────────────────────────────────────────────
-// Builds an editable, draggable sub-task row for both tasks and habits
+// ── Shared sub-task row builder ──────────────────────────────────────────────
 function buildStepRow(s, si, opts){
-  // opts: {type:'task'|'habit', list, taskId, habitId, stepsWrap, onSave, onDelete, onToggle}
-  const DEL_SVG='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
   const CHK_W='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
   const CHK_D='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  const DRAG_SVG='<svg width="10" height="14" viewBox="0 0 10 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="2" x2="3" y2="14"/><line x1="7" y1="2" x2="7" y2="14"/></svg>';
 
   const row=document.createElement('div');
   row.className='sub-task-row'+(s.done?' done-sub':'');
   row.style.cssText='display:flex;align-items:center;gap:6px;padding:7px 8px;cursor:default;touch-action:pan-y';
   row.dataset.si=si;
 
-  // Drag handle
-  const dragHandle=document.createElement('span');
-  dragHandle.style.cssText='cursor:grab;color:var(--text3);flex-shrink:0;display:flex;align-items:center;touch-action:none';
-  dragHandle.innerHTML=DRAG_SVG;
-  dragHandle.title='Drag to reorder';
-
-  // Editable text
+  // Text
   const textEl=document.createElement('span');
   textEl.className='sub-text';
   textEl.innerHTML=linkify(s.text);
-  textEl.style.cssText='flex:1;min-width:0;word-break:break-word;cursor:pointer';
-  textEl.title='Click to edit';
 
-  // Click to edit inline
-  textEl.addEventListener('click',function(e){
-    if(e.target.closest('a')) return;
-    e.stopPropagation();
-    const inp=document.createElement('input');
-    inp.type='text';
-    inp.value=s.text;
-    inp.style.cssText='flex:1;font-size:13px;border:none;background:transparent;color:var(--text);outline:1px solid var(--blue);border-radius:4px;padding:1px 4px;min-width:0;width:100%';
-    textEl.replaceWith(inp);
-    inp.focus();inp.select();
-    let saved=false;
-    function saveEdit(){
-      if(saved) return; saved=true;
-      const newText=inp.value.trim();
-      if(newText && newText!==s.text){
-        s.text=newText;
-        opts.onSave();
-      }
-      inp.replaceWith(textEl);
-      textEl.innerHTML=linkify(s.text);
-    }
-    inp.addEventListener('keydown',function(ev){
-      if(ev.key==='Enter'){ev.preventDefault();saveEdit();}
-      if(ev.key==='Escape'){saved=true;inp.replaceWith(textEl);}
-    });
-    inp.addEventListener('blur',function(){setTimeout(saveEdit,100);});
-  });
-
-  // Done button (delete moved to edit form)
+  // Done button
   const doneBtn=document.createElement('button');
   doneBtn.className='sq-btn'+(s.done?' is-done':' done-btn');
-  doneBtn.style.cssText='width:26px;height:26px;flex-shrink:0';
+  doneBtn.style.cssText='flex-shrink:0';
   doneBtn.innerHTML=s.done?CHK_W:CHK_D;
   doneBtn.title=s.done?'Mark undone':'Mark done';
   doneBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
   doneBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
   doneBtn.addEventListener('click',function(e){e.stopPropagation();opts.onToggle(si);});
 
-  // Click row also toggles (but not if clicking buttons or editing)
-  row.addEventListener('click',function(e){
-    if(e.target.closest('button')||e.target.closest('a')||e.target.tagName==='INPUT') return;
-    opts.onToggle(si);
-  });
-
-  row.appendChild(dragHandle);
   row.appendChild(textEl);
   row.appendChild(doneBtn);
 
-  // ── Drag-to-reorder for sub-tasks ────────────────────────────────
-  let stepDragSrc=null;
-  dragHandle.addEventListener('mousedown',function(e){
-    e.stopPropagation();
-    stepDragSrc=row;
-    row.style.opacity='0.5';
-    document.addEventListener('mousemove',onStepMouseMove);
-    document.addEventListener('mouseup',onStepMouseUp);
+  row.addEventListener('click',function(e){
+    if(e.target.closest('button')||e.target.closest('a')) return;
+    opts.onToggle(si);
   });
-
-  // Touch drag
-  let stepTouchSrc=null,stepTouchGhost=null;
-  dragHandle.addEventListener('touchstart',function(e){
-    e.stopPropagation();
-    stepTouchSrc=row;
-    row.style.opacity='0.5';
-    const t=e.touches[0];
-    stepTouchGhost=document.createElement('div');
-    stepTouchGhost.style.cssText='position:fixed;left:'+(t.clientX+8)+'px;top:'+(t.clientY-20)+'px;background:var(--surface);border:1.5px solid var(--blue);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);pointer-events:none;z-index:9999;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-    stepTouchGhost.textContent=s.text;
-    document.body.appendChild(stepTouchGhost);
-  },{passive:true});
-
-  dragHandle.addEventListener('touchmove',function(e){
-    if(!stepTouchSrc) return;
-    e.preventDefault();
-    const tc=e.touches[0];
-    if(stepTouchGhost){stepTouchGhost.style.left=(tc.clientX+8)+'px';stepTouchGhost.style.top=(tc.clientY-20)+'px';}
-    const under=document.elementFromPoint(tc.clientX,tc.clientY);
-    const targetRow=under&&under.closest('.sub-task-row');
-    opts.stepsWrap.querySelectorAll('.sub-task-row').forEach(r=>r.style.borderColor='');
-    if(targetRow&&targetRow!==stepTouchSrc) targetRow.style.borderColor='var(--blue)';
-  },{passive:false});
-
-  dragHandle.addEventListener('touchend',function(e){
-    if(!stepTouchSrc) return;
-    if(stepTouchGhost){stepTouchGhost.remove();stepTouchGhost=null;}
-    const tc=e.changedTouches[0];
-    const under=document.elementFromPoint(tc.clientX,tc.clientY);
-    const targetRow=under&&under.closest('.sub-task-row');
-    opts.stepsWrap.querySelectorAll('.sub-task-row').forEach(r=>r.style.borderColor='');
-    if(targetRow&&targetRow!==stepTouchSrc){
-      const fromIdx=+stepTouchSrc.dataset.si;
-      const toIdx=+targetRow.dataset.si;
-      opts.onReorder(fromIdx,toIdx);
-    } else {
-      stepTouchSrc.style.opacity='';
-    }
-    stepTouchSrc=null;
-  },{passive:true});
 
   return row;
 }
-
-function onStepMouseMove(e){
-  // Handled via drop on target rows
-}
-function onStepMouseUp(e){
-  document.removeEventListener('mousemove',onStepMouseMove);
-  document.removeEventListener('mouseup',onStepMouseUp);
-  if(!stepDragSrc) return;
-  // Find target row under cursor
-  stepDragSrc.style.opacity='';
-  const els=document.querySelectorAll('.sub-task-row');
-  let target=null;
-  els.forEach(r=>{
-    const rect=r.getBoundingClientRect();
-    if(e.clientY>=rect.top&&e.clientY<=rect.bottom&&r!==stepDragSrc) target=r;
-    r.style.borderColor='';
-  });
-  if(target&&stepDragSrc.parentElement===target.parentElement){
-    // Find the reorder callback from the parent
-    const fromIdx=+stepDragSrc.dataset.si;
-    const toIdx=+target.dataset.si;
-    // Trigger re-render via custom event
-    const ev=new CustomEvent('step-reorder',{detail:{from:fromIdx,to:toIdx},bubbles:true});
-    stepDragSrc.dispatchEvent(ev);
-  }
-  stepDragSrc=null;
-}
-let stepDragSrc=null;
 
 // Convenience wrappers
 function buildTaskStepRow(s,si,list,taskId,stepsWrap){
