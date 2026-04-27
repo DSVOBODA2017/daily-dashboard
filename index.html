@@ -1305,6 +1305,9 @@ function renderTasks(list,cid,countId){
         t.steps.forEach(function(s,si){
           stepsWrap.appendChild(buildTaskStepRow(s,si,list,t.id,stepsWrap));
         });
+        stepsWrap.addEventListener('step-reorder',function(e){
+          // handled inside buildTaskStepRow onReorder
+        });
         d.appendChild(stepsWrap);
       }
       addDrag(d,list);
@@ -1866,6 +1869,203 @@ function removeHabitStep(habitId,stepIdx){
   const h=habits.find(h=>h.id===habitId);if(!h||!h.steps)return;
   h.steps.splice(stepIdx,1);
   save(SK.habits,habits);renderHabits();
+}
+
+// ── Shared sub-task row builder ───────────────────────────────────────────────
+// Builds an editable, draggable sub-task row for both tasks and habits
+function buildStepRow(s, si, opts){
+  // opts: {type:'task'|'habit', list, taskId, habitId, stepsWrap, onSave, onDelete, onToggle}
+  const DEL_SVG='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+  const CHK_W='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  const CHK_D='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  const DRAG_SVG='<svg width="10" height="14" viewBox="0 0 10 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="2" x2="3" y2="14"/><line x1="7" y1="2" x2="7" y2="14"/></svg>';
+
+  const row=document.createElement('div');
+  row.className='sub-task-row'+(s.done?' done-sub':'');
+  row.style.cssText='display:flex;align-items:center;gap:6px;padding:7px 8px;cursor:default;touch-action:pan-y';
+  row.dataset.si=si;
+
+  // Drag handle
+  const dragHandle=document.createElement('span');
+  dragHandle.style.cssText='cursor:grab;color:var(--text3);flex-shrink:0;display:flex;align-items:center;touch-action:none';
+  dragHandle.innerHTML=DRAG_SVG;
+  dragHandle.title='Drag to reorder';
+
+  // Editable text
+  const textEl=document.createElement('span');
+  textEl.className='sub-text';
+  textEl.innerHTML=linkify(s.text);
+  textEl.style.cssText='flex:1;min-width:0;word-break:break-word;cursor:pointer';
+  textEl.title='Click to edit';
+
+  // Click to edit inline
+  textEl.addEventListener('click',function(e){
+    if(e.target.closest('a')) return;
+    e.stopPropagation();
+    const inp=document.createElement('input');
+    inp.type='text';
+    inp.value=s.text;
+    inp.style.cssText='flex:1;font-size:13px;border:none;background:transparent;color:var(--text);outline:1px solid var(--blue);border-radius:4px;padding:1px 4px;min-width:0;width:100%';
+    textEl.replaceWith(inp);
+    inp.focus();inp.select();
+    let saved=false;
+    function saveEdit(){
+      if(saved) return; saved=true;
+      const newText=inp.value.trim();
+      if(newText && newText!==s.text){
+        s.text=newText;
+        opts.onSave();
+      }
+      inp.replaceWith(textEl);
+      textEl.innerHTML=linkify(s.text);
+    }
+    inp.addEventListener('keydown',function(ev){
+      if(ev.key==='Enter'){ev.preventDefault();saveEdit();}
+      if(ev.key==='Escape'){saved=true;inp.replaceWith(textEl);}
+    });
+    inp.addEventListener('blur',function(){setTimeout(saveEdit,100);});
+  });
+
+  // Delete button
+  const delBtn=document.createElement('button');
+  delBtn.className='sq-btn del-btn';
+  delBtn.style.cssText='width:26px;height:26px;flex-shrink:0';
+  delBtn.innerHTML=DEL_SVG;
+  delBtn.title='Delete';
+  delBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
+  delBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+  delBtn.addEventListener('click',function(e){e.stopPropagation();opts.onDelete(si);});
+
+  // Done button
+  const doneBtn=document.createElement('button');
+  doneBtn.className='sq-btn'+(s.done?' is-done':' done-btn');
+  doneBtn.style.cssText='width:26px;height:26px;flex-shrink:0';
+  doneBtn.innerHTML=s.done?CHK_W:CHK_D;
+  doneBtn.title=s.done?'Mark undone':'Mark done';
+  doneBtn.addEventListener('mousedown',function(e){e.stopPropagation();});
+  doneBtn.addEventListener('touchstart',function(e){e.stopPropagation();},{passive:true});
+  doneBtn.addEventListener('click',function(e){e.stopPropagation();opts.onToggle(si);});
+
+  // Click row also toggles (but not if clicking buttons or editing)
+  row.addEventListener('click',function(e){
+    if(e.target.closest('button')||e.target.closest('a')||e.target.tagName==='INPUT') return;
+    opts.onToggle(si);
+  });
+
+  row.appendChild(dragHandle);
+  row.appendChild(textEl);
+  row.appendChild(delBtn);
+  row.appendChild(doneBtn);
+
+  // ── Drag-to-reorder for sub-tasks ────────────────────────────────
+  let stepDragSrc=null;
+  dragHandle.addEventListener('mousedown',function(e){
+    e.stopPropagation();
+    stepDragSrc=row;
+    row.style.opacity='0.5';
+    document.addEventListener('mousemove',onStepMouseMove);
+    document.addEventListener('mouseup',onStepMouseUp);
+  });
+
+  // Touch drag
+  let stepTouchSrc=null,stepTouchGhost=null;
+  dragHandle.addEventListener('touchstart',function(e){
+    e.stopPropagation();
+    stepTouchSrc=row;
+    row.style.opacity='0.5';
+    const t=e.touches[0];
+    stepTouchGhost=document.createElement('div');
+    stepTouchGhost.style.cssText='position:fixed;left:'+(t.clientX+8)+'px;top:'+(t.clientY-20)+'px;background:var(--surface);border:1.5px solid var(--blue);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);pointer-events:none;z-index:9999;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    stepTouchGhost.textContent=s.text;
+    document.body.appendChild(stepTouchGhost);
+  },{passive:true});
+
+  dragHandle.addEventListener('touchmove',function(e){
+    if(!stepTouchSrc) return;
+    e.preventDefault();
+    const tc=e.touches[0];
+    if(stepTouchGhost){stepTouchGhost.style.left=(tc.clientX+8)+'px';stepTouchGhost.style.top=(tc.clientY-20)+'px';}
+    const under=document.elementFromPoint(tc.clientX,tc.clientY);
+    const targetRow=under&&under.closest('.sub-task-row');
+    opts.stepsWrap.querySelectorAll('.sub-task-row').forEach(r=>r.style.borderColor='');
+    if(targetRow&&targetRow!==stepTouchSrc) targetRow.style.borderColor='var(--blue)';
+  },{passive:false});
+
+  dragHandle.addEventListener('touchend',function(e){
+    if(!stepTouchSrc) return;
+    if(stepTouchGhost){stepTouchGhost.remove();stepTouchGhost=null;}
+    const tc=e.changedTouches[0];
+    const under=document.elementFromPoint(tc.clientX,tc.clientY);
+    const targetRow=under&&under.closest('.sub-task-row');
+    opts.stepsWrap.querySelectorAll('.sub-task-row').forEach(r=>r.style.borderColor='');
+    if(targetRow&&targetRow!==stepTouchSrc){
+      const fromIdx=+stepTouchSrc.dataset.si;
+      const toIdx=+targetRow.dataset.si;
+      opts.onReorder(fromIdx,toIdx);
+    } else {
+      stepTouchSrc.style.opacity='';
+    }
+    stepTouchSrc=null;
+  },{passive:true});
+
+  return row;
+}
+
+function onStepMouseMove(e){
+  // Handled via drop on target rows
+}
+function onStepMouseUp(e){
+  document.removeEventListener('mousemove',onStepMouseMove);
+  document.removeEventListener('mouseup',onStepMouseUp);
+  if(!stepDragSrc) return;
+  // Find target row under cursor
+  stepDragSrc.style.opacity='';
+  const els=document.querySelectorAll('.sub-task-row');
+  let target=null;
+  els.forEach(r=>{
+    const rect=r.getBoundingClientRect();
+    if(e.clientY>=rect.top&&e.clientY<=rect.bottom&&r!==stepDragSrc) target=r;
+    r.style.borderColor='';
+  });
+  if(target&&stepDragSrc.parentElement===target.parentElement){
+    // Find the reorder callback from the parent
+    const fromIdx=+stepDragSrc.dataset.si;
+    const toIdx=+target.dataset.si;
+    // Trigger re-render via custom event
+    const ev=new CustomEvent('step-reorder',{detail:{from:fromIdx,to:toIdx},bubbles:true});
+    stepDragSrc.dispatchEvent(ev);
+  }
+  stepDragSrc=null;
+}
+let stepDragSrc=null;
+
+// Convenience wrappers
+function buildTaskStepRow(s,si,list,taskId,stepsWrap){
+  return buildStepRow(s,si,{
+    type:'task',list,taskId,stepsWrap,
+    onSave:function(){save(SK.tasks,tasks);},
+    onDelete:function(idx){removeTaskStepFromList(list,taskId,idx);},
+    onToggle:function(idx){toggleTaskStep(list,taskId,idx);},
+    onReorder:function(from,to){
+      const t=tasks[list].find(t=>t.id===taskId);if(!t||!t.steps)return;
+      const [item]=t.steps.splice(from,1);t.steps.splice(to,0,item);
+      save(SK.tasks,tasks);render();
+    }
+  });
+}
+
+function buildHabitStepRow(s,si,habitId,stepsWrap){
+  return buildStepRow(s,si,{
+    type:'habit',habitId,stepsWrap,
+    onSave:function(){save(SK.habits,habits);},
+    onDelete:function(idx){removeHabitStep(habitId,idx);},
+    onToggle:function(idx){toggleStep(habitId,idx);},
+    onReorder:function(from,to){
+      const h=habits.find(h=>h.id===habitId);if(!h||!h.steps)return;
+      const [item]=h.steps.splice(from,1);h.steps.splice(to,0,item);
+      save(SK.habits,habits);renderHabits();
+    }
+  });
 }
 function toggleDesc(id){
   const wrap=document.getElementById(id);if(!wrap)return;
