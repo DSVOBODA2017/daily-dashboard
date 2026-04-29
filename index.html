@@ -2159,78 +2159,6 @@ function confirmEdit(){
   save(SK.habits,habits);
   closeModal('edit');renderHabits();
 }
-function showRecapModal(unaddressed){
-  const modal=document.getElementById('recapModal');
-  const list=document.getElementById('recapList');
-  if(!modal||!list)return;
-  list.innerHTML='';
-  const CHECK_SVG='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  const SKIP_SVG='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-  unaddressed.forEach(function(h){
-    const row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px';
-    const nameSpan=document.createElement('span');
-    nameSpan.style.cssText='flex:1;font-size:13px;color:var(--text);min-width:0;word-break:break-word';
-    nameSpan.textContent=h.text||'';
-    const skipBtn=document.createElement('button');
-    skipBtn.className='sq-btn skip-btn';
-    skipBtn.innerHTML=SKIP_SVG;
-    skipBtn.title='Skip';
-    const doneBtn=document.createElement('button');
-    doneBtn.className='sq-btn done-btn';
-    doneBtn.innerHTML=CHECK_SVG;
-    doneBtn.title='Done';
-    (function(habit,rw,sb,db){
-      sb.addEventListener('click',function(){
-        // Only log yesterday — never touch today's done/skipped flags
-        const yesterday=new Date(todayKey);yesterday.setDate(yesterday.getDate()-1);
-        const yKey=yesterday.toISOString().slice(0,10);
-        if(!habit.log) habit.log=[];
-        habit.log=habit.log.filter(e=>e.date!==yKey);
-        habit.log.push({date:yKey,status:'skip',ts:Date.now()});
-        // Streak was already broken since it was missed — just ensure it's 0
-        // but only if lastDone wasn't already yesterday (meaning they did do it)
-        if(habit.lastDone!==yKey){
-          habit.streak=0;
-        }
-        rw.style.opacity='0.5';rw.style.borderColor='var(--red)';
-        sb.disabled=true;db.disabled=true;
-        save(SK.habits,habits);
-      });
-      db.addEventListener('click',function(){
-        // Only log yesterday — never touch today's done/skipped flags
-        const yesterday=new Date(todayKey);yesterday.setDate(yesterday.getDate()-1);
-        const yKey=yesterday.toISOString().slice(0,10);
-        if(!habit.log) habit.log=[];
-        habit.log=habit.log.filter(e=>e.date!==yKey);
-        habit.log.push({date:yKey,status:'done',ts:Date.now()});
-        // Update streak for yesterday only if not already credited
-        if(habit.lastDone!==yKey){
-          habit.streak++;
-          habit.lastDone=yKey;
-        }
-        if(habit.streak>=(habit.bestStreak||0)) habit.bestStreak=habit.streak;
-        // DO NOT set habit.done or habit.skipped — those are today's flags
-        rw.style.opacity='0.5';rw.style.borderColor='var(--green)';
-        db.className='sq-btn is-done';
-        sb.disabled=true;db.disabled=true;
-        save(SK.habits,habits);
-      });
-    })(habits.find(hh=>hh.id===h.id)||h,row,skipBtn,doneBtn);
-    row.appendChild(nameSpan);
-    row.appendChild(skipBtn);
-    row.appendChild(doneBtn);
-    list.appendChild(row);
-  });
-  modal.style.display='flex';
-}
-
-function closeRecap(){
-  const modal=document.getElementById('recapModal');
-  if(modal) modal.style.display='none';
-  renderHabits();
-}
-
 function closeModal(w){document.getElementById(w+'Modal').classList.remove('open');}
 
 function toggleCol(which){
@@ -3598,18 +3526,7 @@ function initApp(){
         _expanded:false
       };
     });
-    // Capture unaddressed habits from yesterday BEFORE resetting
-    const yesterdayUnaddressed=habits.filter(h=>{
-      const activeDays=(!h.days||h.days.length===0)?[0,1,2,3,4,5,6]:h.days;
-      const yesterday2=new Date(todayKey);yesterday2.setDate(yesterday2.getDate()-1);
-      const yesterdayDow2=yesterday2.getDay();
-      return activeDays.includes(yesterdayDow2)&&!h.done&&!h.skipped;
-    });
     save(SK.habits,habits);
-    // Schedule recap modal after render if there are unaddressed habits
-    if(yesterdayUnaddressed.length>0){
-      setTimeout(()=>showRecapModal(yesterdayUnaddressed),600);
-    }
     // Clear mood & day radio selection
     save(SK.mood,null);
     save(SK.day,null);
@@ -3670,19 +3587,5 @@ loadFromCloud();
 </script>
 <div id="syncToast" role="status" aria-live="polite"></div>
 
-<div id="recapModal" class="modal-backdrop" style="display:none;z-index:9000">
-  <div class="modal" style="max-width:480px;width:min(480px,calc(100vw - 32px))">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-      <span style="font-size:20px">🌅</span>
-      <div class="modal-title" style="margin:0">Yesterday's Habits</div>
-    </div>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">These habits from yesterday weren't marked. How did they go?</p>
-    <div id="recapList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:50vh;overflow-y:auto"></div>
-    <div class="row" style="justify-content:flex-end;gap:8px">
-      <button class="chip-secondary" onclick="closeRecap()">Skip</button>
-      <button class="chip-primary" onclick="closeRecap()">Done</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
