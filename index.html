@@ -3672,15 +3672,19 @@ function closeEditEntry(){
 }
 
 function switchPanelTab(group, tab){
-  const todoPanel=document.getElementById(group+'PanelTodo');
-  const habitPanel=document.getElementById(group+'PanelHabits');
-  const todoBtn=document.getElementById(group+'TabTodo');
-  const habitBtn=document.getElementById(group+'TabHabits');
-  if(!todoPanel||!habitPanel)return;
-  todoPanel.style.display=tab==='todo'?'flex':'none';
-  habitPanel.style.display=tab==='habits'?'flex':'none';
-  todoBtn.classList.toggle('active',tab==='todo');
-  habitBtn.classList.toggle('active',tab==='habits');
+  const todoPanel=document.getElementById(group+'List');
+  const habitPanel=document.getElementById(group+'HabitList');
+  const histPanel=document.getElementById(group+'HistoryPanel');
+  const todoTab=document.getElementById(group+'TabTodo');
+  const habitTab=document.getElementById(group+'TabHabits');
+  const histTab=document.getElementById(group+'TabHistory');
+  if(todoPanel) todoPanel.style.display=tab==='todo'?'':'none';
+  if(habitPanel) habitPanel.style.display=tab==='habits'?'':'none';
+  if(histPanel) histPanel.style.display=tab==='history'?'':'none';
+  if(todoTab) todoTab.classList.toggle('active',tab==='todo');
+  if(habitTab) habitTab.classList.toggle('active',tab==='habits');
+  if(histTab) histTab.classList.toggle('active',tab==='history');
+  if(tab==='history'&&group==='work') buildWorkHistory();
 }
 
 function switchTab(which){
