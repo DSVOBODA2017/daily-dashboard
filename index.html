@@ -589,6 +589,7 @@
             <div style="display:flex;border-bottom:1.5px solid var(--border2);margin-bottom:10px">
               <button class="panel-inner-tab active" id="workTabTodo" onclick="switchPanelTab('work','todo')">To Do <span class="pill" id="cWork" style="margin-left:4px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">0</span></button>
               <button class="panel-inner-tab" id="workTabHabits" onclick="switchPanelTab('work','habits')">Habits <span class="pill" id="workHabitCount" style="margin-left:4px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">0</span></button>
+              <button class="panel-inner-tab" id="workTabHistory" onclick="switchPanelTab('work','history')">History</button>
             </div>
             <!-- To Do content -->
             <div id="workPanelTodo" style="flex:1;display:flex;flex-direction:column">
@@ -606,6 +607,7 @@
                 <button class="chip-primary" onclick="openAdd('habits','work')" style="font-size:11px">+ Add</button>
               </div>
               <div id="workHabitList" class="task-list-container" style="flex:1"></div>
+              <div id="workHistoryPanel" style="display:none;flex:1;overflow-y:auto"></div>
             </div>
           </div>
           <!-- Personal -->
@@ -664,7 +666,7 @@
             <div class="tab-bar">
               <button class="tab active" id="tabCharts" onclick="switchTab('charts')">Charts</button>
               <button class="tab" id="tabHistory" onclick="switchTab('history')">Log</button>
-              <button class="tab" id="tabWins" onclick="switchTab('wins')">Wins</button>
+
               <button class="tab" id="tabHabitMetrics" onclick="switchTab('habitMetrics')">Habits</button>
             </div>
           </div>
@@ -674,7 +676,7 @@
               <div class="metric-box"><div class="metric-num" id="mAvgDay">—</div><div class="metric-lbl">Avg day</div></div>
               <div class="metric-box"><div class="metric-num" id="mEntries">0</div><div class="metric-lbl">Entries</div></div>
               <div class="metric-box"><div class="metric-num" id="mStreak">0</div><div class="metric-lbl">Day streak</div></div>
-              <div class="metric-box" style="cursor:pointer" onclick="switchTab('wins')"><div class="metric-num" id="mWins">0</div><div class="metric-lbl">🏆 Wins</div></div>
+              <div class="metric-box"><div class="metric-num" id="mWins">0</div><div class="metric-lbl">🏆 Wins</div></div>
             </div>
             <div class="charts-row">
               <div class="chart-panel"><div class="section-lbl" style="margin-bottom:6px">Mood trend</div><canvas id="moodCanvas" height="75"></canvas></div>
@@ -684,9 +686,7 @@
           <div id="panelHistory" style="display:none">
             <div class="history-list" id="historyRows"></div>
           </div>
-          <div id="panelWins" style="display:none">
-            <div class="history-list" id="winsRows"></div>
-          </div>
+
           <div id="panelHabitMetrics" style="display:none">
             <div id="habitMetricsContent" style="display:flex;flex-direction:column;gap:12px;padding-top:8px;min-width:0;overflow:hidden;max-width:100%"></div>
           </div>
@@ -868,9 +868,10 @@ const MONTHS=["January","February","March","April","May","June","July","August",
 const now=new Date();
 const todayKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 document.getElementById('dayName').textContent=DAYS[now.getDay()].toUpperCase();
+  document.querySelector('.app')&&(document.querySelector('.app').dataset.date=MONTHS[now.getMonth()].toUpperCase()+' '+now.getDate()+' '+now.getFullYear());
 document.getElementById('dateStr').textContent=`${MONTHS[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
 
-const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme',lastDate:'dpd_lastDate',presets:'dpd_presets',wins:'dpd_wins',vis:'dpd_vis'};
+const SK={tasks:'dpd_tasks',habits:'dpd_habits',history:'dpd_history',settings:'dpd_settings',refl:'dpd_refl',nextid:'dpd_nextid',mood:'dpd_todayMood',day:'dpd_todayDay',theme:'dpd_theme',lastDate:'dpd_lastDate',presets:'dpd_presets',wins:'dpd_wins',vis:'dpd_vis',completedTasks:'dpd_completedTasks'};
 const GS_URL='https://script.google.com/macros/s/AKfycbxAjW1BJFW-1GgmC1vx5H_RGa7ltPcaPLNWJY4YvQSwRf1jQxx2aCCRFwqMwr77Jibt1Q/exec';
 let _syncPending={};
 let _syncTimer=null;
@@ -1032,6 +1033,7 @@ let refl={grateful:'',accomplish:'',overall:''};
 let nextId={work:10,personal:10,habits:10};
 let vis={work:true,personal:true}; // default; overridden in initApp
 let wins=[];
+let completedTasks=[];
 let showCompletedHabits={work:false,personal:false}; // shows done habits
 let showSkippedHabits={work:false,personal:false};   // shows skipped habits
 
@@ -1631,10 +1633,9 @@ function completeTask(list,id){
   if(list==='work'){
     const t=tasks[list].find(t=>t.id===id);
     if(t){
-      _pendingWin={list,id,text:t.text,desc:t.desc||''};
+      _pendingWin={list,id,text:t.text,desc:t.desc||'',dueDate:t.dueDate||'',isWin:t.isWin||false,steps:t.steps||[]};
       document.getElementById('winTaskPreview').textContent=t.text;
       document.getElementById('winReason').value='';
-      // Always ask — Complete is primary, Save as Win is secondary
       document.getElementById('winModal').classList.add('open');
       return;
     }
@@ -1645,6 +1646,20 @@ function completeTask(list,id){
 
 function skipWin(){
   if(!_pendingWin)return;
+  // Save to completed history with isWin=false
+  const ct={
+    id:Date.now(),
+    completedAt:Date.now(),
+    text:_pendingWin.text,
+    desc:_pendingWin.desc||'',
+    dueDate:_pendingWin.dueDate||'',
+    isWin:false,
+    winReason:'',
+    steps:_pendingWin.steps||[],
+    originalId:_pendingWin.id
+  };
+  completedTasks.push(ct);
+  save(SK.completedTasks,completedTasks);
   tasks[_pendingWin.list]=tasks[_pendingWin.list].filter(t=>t.id!==_pendingWin.id);
   save(SK.tasks,tasks);
   _pendingWin=null;
@@ -1654,19 +1669,28 @@ function skipWin(){
 function confirmWin(){
   if(!_pendingWin)return;
   const reason=document.getElementById('winReason').value.trim();
-  const win={
-    id:Date.now(),
-    timestamp:Date.now(),
-    title:_pendingWin.text,
-    desc:_pendingWin.desc,
-    reason,
-  };
+  // Save to wins (legacy)
+  const win={id:Date.now(),timestamp:Date.now(),title:_pendingWin.text,desc:_pendingWin.desc,reason};
   wins.push(win);
   save(SK.wins,wins);
+  // Also save to completedTasks with isWin=true
+  const ct={
+    id:Date.now()+1,
+    completedAt:Date.now(),
+    text:_pendingWin.text,
+    desc:_pendingWin.desc||'',
+    dueDate:_pendingWin.dueDate||'',
+    isWin:true,
+    winReason:reason,
+    steps:_pendingWin.steps||[],
+    originalId:_pendingWin.id
+  };
+  completedTasks.push(ct);
+  save(SK.completedTasks,completedTasks);
   tasks[_pendingWin.list]=tasks[_pendingWin.list].filter(t=>t.id!==_pendingWin.id);
   save(SK.tasks,tasks);
   _pendingWin=null;
-  closeWinModal();render();buildWins();
+  closeWinModal();render();
 }
 
 function closeWinModal(){
@@ -2728,6 +2752,7 @@ function updateMetrics(){
   for(const h of sorted){if(h.date===check){streak++;const d=new Date(check);d.setDate(d.getDate()-1);check=d.toISOString().slice(0,10);}else if(h.date<check)break;}
   document.getElementById('mStreak').textContent=streak;
   wins=load(SK.wins,[]);
+  completedTasks=load(SK.completedTasks,[]);
   document.getElementById('mWins').textContent=wins.length;
   buildCharts(recent);buildHistory();
 }
@@ -3213,8 +3238,219 @@ function buildHabitMetrics(){
 }
 
 
+function buildWorkHistory(){
+  const el=document.getElementById('workHistoryPanel');
+  if(!el) return;
+  el.innerHTML='';
+
+  // Merge completedTasks + wins (de-dupe by originalId where possible)
+  const allEntries=[...completedTasks];
+
+  if(!allEntries.length){
+    el.innerHTML='<div class="zero-state" style="padding:20px 0">No completed tasks yet — complete a Work Day task to see it here.</div>';
+    return;
+  }
+
+  // Sort newest first
+  const sorted=[...allEntries].sort((a,b)=>b.completedAt-a.completedAt);
+
+  // Group by work week (Mon–Sun)
+  function getWorkWeekKey(ts){
+    const d=new Date(ts);
+    const day=d.getDay();
+    const diff=d.getDate()-(day===0?6:day-1);
+    const mon=new Date(d.setDate(diff));
+    return mon.toISOString().slice(0,10);
+  }
+  function fmtWeek(monStr){
+    const mon=new Date(monStr+'T00:00:00');
+    const sun=new Date(mon);sun.setDate(sun.getDate()+6);
+    const opts={month:'short',day:'numeric'};
+    return mon.toLocaleDateString('en-US',opts)+' – '+sun.toLocaleDateString('en-US',opts);
+  }
+  function fmtTs(ts){
+    const d=new Date(ts);
+    return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+
+      ' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  }
+
+  // Group by month then work week
+  const byMonth={};
+  sorted.forEach(e=>{
+    const d=new Date(e.completedAt);
+    const mKey=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    const mLabel=d.toLocaleDateString('en-US',{month:'long',year:'numeric'}).toUpperCase();
+    if(!byMonth[mKey]) byMonth[mKey]={label:mLabel,weeks:{}};
+    const wKey=getWorkWeekKey(e.completedAt);
+    if(!byMonth[mKey].weeks[wKey]) byMonth[mKey].weeks[wKey]=[];
+    byMonth[mKey].weeks[wKey].push(e);
+  });
+
+  Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).forEach(mKey=>{
+    const month=byMonth[mKey];
+
+    // Month header — collapsible
+    const mHdr=document.createElement('div');
+    mHdr.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 0 4px;cursor:pointer;border-bottom:1px solid var(--border);margin-bottom:6px;user-select:none';
+    mHdr.innerHTML='<svg id="mchev_'+mKey+'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transition:transform 0.2s;transform:rotate(90deg)"><polyline points="9 18 15 12 9 6"/></svg>'
+      +'<span style="font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--text2)">'+month.label+'</span>';
+    const mBody=document.createElement('div');
+    mBody.id='mBody_'+mKey;
+    mHdr.addEventListener('click',function(){
+      const open=mBody.style.display!=='none';
+      mBody.style.display=open?'none':'';
+      document.getElementById('mchev_'+mKey).style.transform=open?'rotate(0deg)':'rotate(90deg)';
+    });
+    el.appendChild(mHdr);
+    el.appendChild(mBody);
+
+    // Work weeks within month
+    Object.keys(month.weeks).sort((a,b)=>b.localeCompare(a)).forEach(wKey=>{
+      const entries=month.weeks[wKey];
+
+      const wHdr=document.createElement('div');
+      wHdr.style.cssText='display:flex;align-items:center;gap:6px;padding:5px 0 3px 8px;cursor:pointer;user-select:none;margin-bottom:4px';
+      wHdr.innerHTML='<svg id="wchev_'+wKey+'" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transition:transform 0.2s;transform:rotate(90deg)"><polyline points="9 18 15 12 9 6"/></svg>'
+        +'<span style="font-size:10px;font-weight:600;color:var(--text3);letter-spacing:0.3px">Week of '+fmtWeek(wKey)+'</span>'
+        +'<span style="font-size:10px;color:var(--text3);margin-left:4px">('+entries.length+')</span>';
+      const wBody=document.createElement('div');
+      wBody.id='wBody_'+wKey;
+      wHdr.addEventListener('click',function(){
+        const open=wBody.style.display!=='none';
+        wBody.style.display=open?'none':'';
+        document.getElementById('wchev_'+wKey).style.transform=open?'rotate(0deg)':'rotate(90deg)';
+      });
+      mBody.appendChild(wHdr);
+      mBody.appendChild(wBody);
+
+      entries.forEach(function(e){
+        const card=document.createElement('div');
+        card.style.cssText='background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;margin-bottom:6px;margin-left:8px;position:relative;'+(e.isWin?'border-left:3px solid var(--amber);':'');
+
+        // Top row: title + win badge + timestamp
+        const topRow=document.createElement('div');
+        topRow.style.cssText='display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px';
+        const titleWrap=document.createElement('div');
+        titleWrap.style.cssText='display:flex;align-items:center;gap:6px;flex:1;min-width:0;flex-wrap:wrap';
+        const titleEl=document.createElement('span');
+        titleEl.style.cssText='font-size:13px;font-weight:500;color:var(--text);word-break:break-word';
+        titleEl.textContent=e.text;
+        titleWrap.appendChild(titleEl);
+        if(e.isWin){
+          const winBadge=document.createElement('span');
+          winBadge.style.cssText='font-size:10px;padding:1px 7px;border-radius:20px;background:var(--amber-bg);color:var(--amber);border:0.5px solid var(--amber);white-space:nowrap;flex-shrink:0';
+          winBadge.textContent='🏆 Win';
+          titleWrap.appendChild(winBadge);
+        }
+        topRow.appendChild(titleWrap);
+
+        // Timestamp
+        const tsEl=document.createElement('span');
+        tsEl.style.cssText='font-size:10px;color:var(--text3);white-space:nowrap;flex-shrink:0;font-family:"DM Mono",monospace';
+        tsEl.textContent=fmtTs(e.completedAt);
+        topRow.appendChild(tsEl);
+        card.appendChild(topRow);
+
+        // Description
+        if(e.desc){
+          const descEl=document.createElement('div');
+          descEl.style.cssText='font-size:11px;color:var(--text2);margin-bottom:4px;line-height:1.4';
+          descEl.textContent=e.desc;
+          card.appendChild(descEl);
+        }
+
+        // Win reason
+        if(e.isWin&&e.winReason){
+          const reasonEl=document.createElement('div');
+          reasonEl.style.cssText='font-size:11px;color:var(--amber);margin-bottom:6px;font-style:italic';
+          reasonEl.textContent='"'+e.winReason+'"';
+          card.appendChild(reasonEl);
+        }
+
+        // Action buttons row
+        const actRow=document.createElement('div');
+        actRow.style.cssText='display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap';
+
+        // Undo button — restores task to work list
+        const undoBtn=document.createElement('button');
+        undoBtn.className='chip-secondary';
+        undoBtn.style.cssText='font-size:10px;padding:2px 9px';
+        undoBtn.textContent='↩ Undo';
+        undoBtn.title='Restore to active tasks';
+        undoBtn.addEventListener('click',function(){
+          // Restore task to work list
+          const restored={
+            id:nextId.work++,
+            text:e.text,
+            desc:e.desc||'',
+            dueDate:e.dueDate||'',
+            dueTime:'',
+            isWin:e.isWin,
+            star:false,
+            steps:(e.steps||[]).map(s=>({text:s.text,done:false}))
+          };
+          tasks.work.push(restored);
+          save(SK.tasks,tasks);
+          save(SK.nextid,nextId);
+          // Remove from completedTasks
+          completedTasks=completedTasks.filter(x=>x.id!==e.id);
+          save(SK.completedTasks,completedTasks);
+          // Also remove from wins if it was a win
+          if(e.isWin){
+            wins=wins.filter(w=>w.title!==e.text);
+            save(SK.wins,wins);
+          }
+          render();
+          buildWorkHistory();
+        });
+        actRow.appendChild(undoBtn);
+
+        // Toggle Win button
+        const winToggle=document.createElement('button');
+        winToggle.className='chip-secondary';
+        winToggle.style.cssText='font-size:10px;padding:2px 9px';
+        winToggle.textContent=e.isWin?'Remove Win':'Mark as Win 🏆';
+        winToggle.addEventListener('click',function(){
+          const idx=completedTasks.findIndex(x=>x.id===e.id);
+          if(idx<0) return;
+          completedTasks[idx].isWin=!completedTasks[idx].isWin;
+          if(completedTasks[idx].isWin){
+            // Add to wins
+            wins.push({id:Date.now(),timestamp:e.completedAt,title:e.text,desc:e.desc||'',reason:''});
+            save(SK.wins,wins);
+          } else {
+            wins=wins.filter(w=>w.title!==e.text);
+            save(SK.wins,wins);
+          }
+          save(SK.completedTasks,completedTasks);
+          buildWorkHistory();
+        });
+        actRow.appendChild(winToggle);
+
+        // Delete button
+        const delBtn=document.createElement('button');
+        delBtn.className='chip-secondary';
+        delBtn.style.cssText='font-size:10px;padding:2px 9px;color:var(--red);border-color:var(--red)';
+        delBtn.textContent='Delete';
+        delBtn.addEventListener('click',function(){
+          if(!confirm('Delete this entry permanently?')) return;
+          completedTasks=completedTasks.filter(x=>x.id!==e.id);
+          save(SK.completedTasks,completedTasks);
+          if(e.isWin){wins=wins.filter(w=>w.title!==e.text);save(SK.wins,wins);}
+          buildWorkHistory();
+        });
+        actRow.appendChild(delBtn);
+
+        card.appendChild(actRow);
+        wBody.appendChild(card);
+      });
+    });
+  });
+}
+
 function buildWins(){
   wins=load(SK.wins,[]);
+  completedTasks=load(SK.completedTasks,[]);
   const el=document.getElementById('winsRows');
   if(!el)return;
   if(!wins.length){
@@ -3434,7 +3670,7 @@ function switchPanelTab(group, tab){
 }
 
 function switchTab(which){
-  ['charts','history','wins','habitMetrics'].forEach(t=>{
+  ['charts','history','habitMetrics'].forEach(t=>{
     const panelId='panel'+t.charAt(0).toUpperCase()+t.slice(1);
     const tabId='tab'+t.charAt(0).toUpperCase()+t.slice(1);
     const panel=document.getElementById(panelId);
@@ -3443,7 +3679,6 @@ function switchTab(which){
     if(tab) tab.classList.toggle('active',t===which);
   });
   if(which==='history') buildHistory();
-  if(which==='wins') buildWins();
   if(which==='habitMetrics') buildHabitMetrics();
 }
 
@@ -3476,6 +3711,7 @@ function initApp(){
   ]);
   history=load(SK.history,[]);
   wins=load(SK.wins,[]);
+  completedTasks=load(SK.completedTasks,[]);
 
   // Restore column visibility from last session
   const savedVis=load(SK.vis,null);
