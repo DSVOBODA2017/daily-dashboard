@@ -3243,9 +3243,13 @@ function buildWorkHistory(){
   if(!el) return;
   el.innerHTML='';
 
+  // Always read fresh from localStorage in case sync hasn't updated state vars
+  const freshWins=load(SK.wins,[]);
+  const freshCompleted=load(SK.completedTasks,[]);
+
   // Merge completedTasks with existing wins so legacy wins show up too
-  const winsAsEntries=wins
-    .filter(w=>!completedTasks.some(ct=>ct.isWin&&ct.text===w.title))
+  const winsAsEntries=freshWins
+    .filter(w=>!freshCompleted.some(ct=>ct.isWin&&ct.text===w.title))
     .map(w=>({
       id:w.id,
       completedAt:w.timestamp||Date.now(),
@@ -3258,7 +3262,7 @@ function buildWorkHistory(){
       originalId:null,
       fromLegacyWins:true
     }));
-  const allEntries=[...completedTasks,...winsAsEntries];
+  const allEntries=[...freshCompleted,...winsAsEntries];
 
   if(!allEntries.length){
     el.innerHTML='<div class="zero-state" style="padding:20px 0">No completed tasks yet — complete a Work Day task to see it here.</div>';
