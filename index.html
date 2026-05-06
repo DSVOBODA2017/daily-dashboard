@@ -607,8 +607,8 @@
                 <button class="chip-primary" onclick="openAdd('habits','work')" style="font-size:11px">+ Add</button>
               </div>
               <div id="workHabitList" class="task-list-container" style="flex:1"></div>
-              <div id="workHistoryPanel" style="display:none;flex:1;overflow-y:auto"></div>
             </div>
+            <div id="workHistoryPanel" style="display:none;flex:1;overflow-y:auto;padding:4px 0"></div>
           </div>
           <!-- Personal -->
           <div id="colPersonal" class="panel" style="display:flex;flex-direction:column">
@@ -3676,14 +3676,15 @@ function closeEditEntry(){
 }
 
 function switchPanelTab(group, tab){
-  const todoPanel=document.getElementById(group+'List');
-  const habitPanel=document.getElementById(group+'HabitList');
+  // Use the outer panel wrappers (workPanelTodo, workPanelHabits) not the inner lists
+  const todoPanel=document.getElementById(group+'PanelTodo');
+  const habitPanel=document.getElementById(group+'PanelHabits');
   const histPanel=document.getElementById(group+'HistoryPanel');
   const todoTab=document.getElementById(group+'TabTodo');
   const habitTab=document.getElementById(group+'TabHabits');
   const histTab=document.getElementById(group+'TabHistory');
-  if(todoPanel) todoPanel.style.display=tab==='todo'?'':'none';
-  if(habitPanel) habitPanel.style.display=tab==='habits'?'':'none';
+  if(todoPanel) todoPanel.style.display=tab==='todo'?'flex':'none';
+  if(habitPanel) habitPanel.style.display=tab==='habits'?'flex':'none';
   if(histPanel) histPanel.style.display=tab==='history'?'':'none';
   if(todoTab) todoTab.classList.toggle('active',tab==='todo');
   if(habitTab) habitTab.classList.toggle('active',tab==='habits');
