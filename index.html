@@ -3243,8 +3243,22 @@ function buildWorkHistory(){
   if(!el) return;
   el.innerHTML='';
 
-  // Merge completedTasks + wins (de-dupe by originalId where possible)
-  const allEntries=[...completedTasks];
+  // Merge completedTasks with existing wins so legacy wins show up too
+  const winsAsEntries=wins
+    .filter(w=>!completedTasks.some(ct=>ct.isWin&&ct.text===w.title))
+    .map(w=>({
+      id:w.id,
+      completedAt:w.timestamp||Date.now(),
+      text:w.title,
+      desc:w.desc||'',
+      dueDate:'',
+      isWin:true,
+      winReason:w.reason||'',
+      steps:[],
+      originalId:null,
+      fromLegacyWins:true
+    }));
+  const allEntries=[...completedTasks,...winsAsEntries];
 
   if(!allEntries.length){
     el.innerHTML='<div class="zero-state" style="padding:20px 0">No completed tasks yet — complete a Work Day task to see it here.</div>';
